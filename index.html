@@ -964,254 +964,1288 @@ flutter analyze             <span class="cmt"># type check</span></div>
   <div class="section-hero" style="--hero-glow:#4ade8018">
     <div class="step-pill">Step 03 · Platform</div>
     <h2>App lifecycle<br><strong>in depth</strong></h2>
-    <p class="subtitle">Two lifecycle layers exist simultaneously: the native OS layer (Android Activity / iOS UIApplicationDelegate) and Flutter's own widget layer. Both matter — for different problems.</p>
+    <p class="subtitle">Click any lifecycle event on the phone simulator to see exactly what fires on Android, iOS, and inside Flutter — with the Dart code that handles it.</p>
   </div>
   <div class="section-body">
 
+
+<style>
+/* ── LIFECYCLE SIMULATOR ── */
+.lc-simulator {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 20px;
+  margin-bottom: 36px;
+  align-items: start;
+}
+
+/* Phone mockup */
+.lc-phone-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  position: sticky;
+  top: 20px;
+}
+.lc-phone {
+  width: 160px;
+  height: 310px;
+  background: #0d0d16;
+  border: 2.5px solid #3a3a5a;
+  border-radius: 28px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 4px #17171f, 0 20px 60px #000a;
+  transition: all 0.4s ease;
+  flex-shrink: 0;
+}
+.lc-phone.state-resumed   { border-color: var(--accent-green); box-shadow: 0 0 0 4px #17171f, 0 0 30px #4ade8040, 0 20px 60px #000a; }
+.lc-phone.state-inactive  { border-color: var(--accent-amber); box-shadow: 0 0 0 4px #17171f, 0 0 30px #fbbf2430, 0 20px 60px #000a; }
+.lc-phone.state-paused    { border-color: #4a4a6a;             box-shadow: 0 0 0 4px #17171f, 0 20px 60px #000a; }
+.lc-phone.state-detached  { border-color: var(--accent-coral); box-shadow: 0 0 0 4px #17171f, 0 0 20px #fb718530, 0 20px 60px #000a; }
+.lc-phone.state-hidden    { border-color: #2a2a4a;             box-shadow: 0 0 0 4px #17171f, 0 20px 60px #000a; opacity: 0.6; }
+
+/* Phone notch */
+.lc-phone::before {
+  content: '';
+  position: absolute;
+  top: 10px; left: 50%;
+  transform: translateX(-50%);
+  width: 50px; height: 8px;
+  background: #17171f;
+  border-radius: 4px;
+  z-index: 2;
+}
+
+/* Phone screen */
+.lc-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 12px 12px;
+  transition: all 0.4s ease;
+}
+.lc-screen-icon { font-size: 32px; transition: all 0.3s; }
+.lc-screen-status {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  line-height: 1.4;
+  transition: color 0.3s;
+}
+.lc-screen-sub {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* phone overlay for inactive/paused states */
+.lc-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0);
+  transition: background 0.4s ease;
+  pointer-events: none;
+  z-index: 1;
+  display: flex;
+  align-items: flex-top;
+  justify-content: flex-end;
+}
+.lc-phone.state-inactive .lc-overlay  { background: rgba(0,0,0,0.3); }
+.lc-phone.state-paused   .lc-overlay  { background: rgba(0,0,0,0.75); }
+.lc-phone.state-detached .lc-overlay  { background: rgba(10,0,0,0.88); }
+.lc-phone.state-hidden   .lc-overlay  { background: rgba(0,0,0,0.6); }
+
+/* notification shade for inactive */
+.lc-shade {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 0;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  border-bottom: 1px solid #3a3a6a;
+  transition: height 0.35s ease;
+  overflow: hidden;
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px;
+}
+.lc-phone.state-inactive .lc-shade { height: 100px; }
+.lc-shade-content {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: #8888aa;
+  width: 100%;
+}
+.lc-shade-notif {
+  background: #2a2a4a;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  font-size: 9px;
+  color: #aaaacc;
+}
+
+/* home screen for paused */
+.lc-homescreen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #0d0d20, #1a1a3a);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 40px 14px 14px;
+  align-content: flex-start;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: 2;
+}
+.lc-phone.state-paused .lc-homescreen,
+.lc-phone.state-hidden .lc-homescreen { opacity: 1; }
+.lc-app-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: #ffffff12;
+}
+
+/* trigger buttons below phone */
+.lc-triggers {
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.lc-trigger-btn {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lc-trigger-btn:hover { border-color: var(--border-active); color: var(--text); }
+.lc-trigger-btn.active { border-color: var(--btn-color, var(--accent-flutter)); color: var(--btn-color, var(--accent-flutter)); background: color-mix(in srgb, var(--btn-color, var(--accent-flutter)) 8%, transparent); }
+.lc-trigger-btn .trigger-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--btn-color, var(--text-dim)); flex-shrink: 0; }
+.lc-trigger-btn.active .trigger-dot { box-shadow: 0 0 6px var(--btn-color, var(--accent-flutter)); }
+
+/* Detail panel */
+.lc-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 500px;
+}
+.lc-detail-header {
+  padding: 18px 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
+  background: var(--surface);
+  border-bottom: none;
+}
+.lc-detail-state-name {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 700;
+  font-style: italic;
+  margin-bottom: 4px;
+  transition: color 0.25s;
+}
+.lc-detail-desc {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin-bottom: 12px;
+}
+.lc-detail-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.lc-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.lc-badge.android { background: #78c85015; color: #78c850; border-color: #78c85030; }
+.lc-badge.ios     { background: #a8b8c815; color: #a8b8c8; border-color: #a8b8c830; }
+.lc-badge.flutter { background: #67d9fc15; color: var(--accent-flutter); border-color: #67d9fc30; }
+.lc-badge.warn    { background: #fb718515; color: var(--accent-coral); border-color: #fb718530; }
+
+/* Tab switcher */
+.lc-tabs {
+  display: flex;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-bottom: none;
+  background: var(--surface2);
+}
+.lc-tab {
+  flex: 1;
+  padding: 10px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text-dim);
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+.lc-tab:hover { color: var(--text-muted); }
+.lc-tab.active { color: var(--accent-flutter); border-bottom-color: var(--accent-flutter); }
+
+/* Code/detail pane */
+.lc-pane {
+  display: none;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.lc-pane.active { display: block; }
+
+.lc-what-panel {
+  padding: 20px 22px;
+}
+.lc-what-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.lc-what-col h5 {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.lc-what-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: var(--surface2);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 5px;
+}
+.lc-what-item.do   { border-left: 2px solid var(--accent-green); }
+.lc-what-item.dont { border-left: 2px solid var(--accent-coral); }
+.lc-what-item.neutral { border-left: 2px solid var(--border-active); }
+.lc-what-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+/* Log panel */
+.lc-log-panel { padding: 0; }
+.lc-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.lc-log-title { font-family: var(--mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.06em; }
+.lc-log-clear {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.lc-log-clear:hover { color: var(--accent-coral); }
+.lc-log-entries {
+  min-height: 180px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.lc-log-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  animation: logIn 0.2s ease;
+}
+@keyframes logIn { from { opacity:0; transform: translateX(-6px); } to { opacity:1; transform:none; } }
+.log-ts   { color: var(--text-dim); font-size: 10px; flex-shrink: 0; }
+.log-event { flex-shrink: 0; font-weight: 500; }
+.log-event.green  { color: var(--accent-green); }
+.log-event.amber  { color: var(--accent-amber); }
+.log-event.dim    { color: var(--text-muted); }
+.log-event.coral  { color: var(--accent-coral); }
+.log-event.blue   { color: var(--accent-flutter); }
+.log-msg  { color: var(--text-muted); font-size: 11px; }
+
+/* React comparison tab */
+.lc-react-panel { padding: 0; }
+
+/* Hint text below phone */
+.lc-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* transitions for detail content */
+.lc-detail-content { animation: detailIn 0.22s ease; }
+@keyframes detailIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+
+@media (max-width: 860px) {
+  .lc-simulator { grid-template-columns: 1fr; }
+  .lc-phone-wrap { flex-direction: row; align-items: flex-start; }
+  .lc-what-row { grid-template-columns: 1fr; }
+}
+</style>
+
     <div class="callout" style="--callout-color:var(--accent-amber)">
       <span class="callout-icon">⚡</span>
-      <div><strong>Two layers, one app.</strong> Flutter surfaces the native lifecycle through <code>AppLifecycleState</code> enum. But the OS also has finer-grained states (partial obscurity, system dialog overlay) that Flutter collapses. Knowing both helps you understand <em>why</em> certain callbacks fire unexpectedly.</div>
+      <div><strong>Two lifecycle layers, one app.</strong> Flutter maps both Android Activity callbacks and iOS UIApplicationDelegate states down to a single <code>AppLifecycleState</code> enum — but each platform has subtleties that affect when and how you respond. Click each scenario below to explore.</div>
     </div>
 
-    <div class="divider"><h3>Flutter widget lifecycle — the React comparison</h3><div class="divider-line"></div></div>
+    <!-- ── INTERACTIVE SIMULATOR ── -->
+    <div class="lc-simulator" id="lc-sim">
+
+      <!-- Left: phone + triggers -->
+      <div class="lc-phone-wrap">
+        <div class="lc-phone state-resumed" id="lc-phone">
+          <div class="lc-shade">
+            <div class="lc-shade-content">
+              <div class="lc-shade-notif">📱 Notification Centre</div>
+              <div class="lc-shade-notif" style="opacity:0.6">📧 3 new emails</div>
+            </div>
+          </div>
+          <div class="lc-homescreen">
+            <div class="lc-app-icon">📱</div>
+            <div class="lc-app-icon">📷</div>
+            <div class="lc-app-icon">🗺️</div>
+            <div class="lc-app-icon">🎵</div>
+            <div class="lc-app-icon">⚙️</div>
+            <div class="lc-app-icon">🔒</div>
+          </div>
+          <div class="lc-overlay"></div>
+          <div class="lc-screen" id="lc-screen">
+            <div class="lc-screen-icon" id="lc-icon">✅</div>
+            <div class="lc-screen-status" id="lc-status" style="color:var(--accent-green)">App Running</div>
+            <div class="lc-screen-sub" id="lc-sub">Fully interactive</div>
+          </div>
+        </div>
+
+        <div class="lc-hint">← Click a scenario<br>to simulate it</div>
+
+        <div class="lc-triggers">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:0.15em;text-transform:uppercase;padding:4px 2px 2px;margin-bottom:2px">Scenarios</div>
+
+          <button class="lc-trigger-btn active" style="--btn-color:var(--accent-green)" data-state="resumed" onclick="lcSelect('resumed')">
+            <div class="trigger-dot"></div>App launches
+          </button>
+          <button class="lc-trigger-btn" style="--btn-color:var(--accent-amber)" data-state="inactive_notif" onclick="lcSelect('inactive_notif')">
+            <div class="trigger-dot"></div>Notification pulled
+          </button>
+          <button class="lc-trigger-btn" style="--btn-color:var(--accent-amber)" data-state="inactive_call" onclick="lcSelect('inactive_call')">
+            <div class="trigger-dot"></div>Incoming call
+          </button>
+          <button class="lc-trigger-btn" style="--btn-color:var(--accent-amber)" data-state="inactive_switcher" onclick="lcSelect('inactive_switcher')">
+            <div class="trigger-dot"></div>App switcher opened
+          </button>
+          <button class="lc-trigger-btn" style="--btn-color:#8888aa" data-state="paused" onclick="lcSelect('paused')">
+            <div class="trigger-dot"></div>Home button pressed
+          </button>
+          <button class="lc-trigger-btn" style="--btn-color:#8888aa" data-state="hidden" onclick="lcSelect('hidden')">
+            <div class="trigger-dot"></div>Another app opens
+          </button>
+          <button class="lc-trigger-btn" style="--btn-color:var(--accent-flutter)" data-state="resumed_back" onclick="lcSelect('resumed_back')">
+            <div class="trigger-dot"></div>User comes back
+          </button>
+          <button class="lc-trigger-btn" style="--btn-color:var(--accent-coral)" data-state="detached" onclick="lcSelect('detached')">
+            <div class="trigger-dot"></div>App killed / swiped
+          </button>
+
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:0.15em;text-transform:uppercase;padding:10px 2px 2px;margin-bottom:2px">Widget-level</div>
+          <button class="lc-trigger-btn" style="--btn-color:var(--accent-flutter)" data-state="initstate" onclick="lcSelect('initstate')">
+            <div class="trigger-dot"></div>Widget mounts
+          </button>
+          <button class="lc-trigger-btn" style="--btn-color:var(--accent-flutter)" data-state="didupdate" onclick="lcSelect('didupdate')">
+            <div class="trigger-dot"></div>Props change
+          </button>
+          <button class="lc-trigger-btn" style="--btn-color:var(--accent-coral)" data-state="dispose" onclick="lcSelect('dispose')">
+            <div class="trigger-dot"></div>Widget unmounts
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: detail panel -->
+      <div class="lc-detail">
+        <div class="lc-detail-header">
+          <div class="lc-detail-content" id="lc-detail-content">
+            <div class="lc-detail-state-name" id="lc-state-name" style="color:var(--accent-green)">resumed</div>
+            <div class="lc-detail-desc" id="lc-state-desc">App is in the foreground, fully interactive. The user can see and touch the app. This is the normal running state — equivalent to a browser tab that's active and visible.</div>
+            <div class="lc-detail-badges" id="lc-state-badges">
+              <span class="lc-badge android">Android: onResume()</span>
+              <span class="lc-badge ios">iOS: Active</span>
+              <span class="lc-badge flutter">AppLifecycleState.resumed</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lc-tabs">
+          <div class="lc-tab active" onclick="lcTab('what')">What to do</div>
+          <div class="lc-tab" onclick="lcTab('code')">Flutter code</div>
+          <div class="lc-tab" onclick="lcTab('react')">React equiv.</div>
+          <div class="lc-tab" onclick="lcTab('log')">Event log</div>
+        </div>
+
+        <!-- WHAT TO DO pane -->
+        <div class="lc-pane active" id="pane-what">
+          <div class="lc-what-panel" id="lc-what-content">
+            <!-- filled by JS -->
+          </div>
+        </div>
+
+        <!-- FLUTTER CODE pane -->
+        <div class="lc-pane" id="pane-code">
+          <div class="code-block" id="lc-code-content" style="border-radius:0 0 12px 12px;font-size:12px">
+            <!-- filled by JS -->
+          </div>
+        </div>
+
+        <!-- REACT EQUIV pane -->
+        <div class="lc-pane" id="pane-react">
+          <div class="code-block" id="lc-react-content" style="border-radius:0 0 12px 12px;font-size:12px">
+            <!-- filled by JS -->
+          </div>
+        </div>
+
+        <!-- EVENT LOG pane -->
+        <div class="lc-pane" id="pane-log">
+          <div class="lc-log-panel">
+            <div class="lc-log-header">
+              <span class="lc-log-title">Flutter console output</span>
+              <button class="lc-log-clear" onclick="lcClearLog()">clear</button>
+            </div>
+            <div class="lc-log-entries" id="lc-log"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Widget lifecycle compare (kept as static reference) -->
+    <div class="divider"><h3>Widget-level lifecycle vs React hooks</h3><div class="divider-line"></div></div>
     <div class="compare-grid">
       <div class="compare-col">
         <div class="compare-header next-h"><span class="lang-dot next-d"></span>React hooks lifecycle</div>
         <div class="code-block"><span class="fn">useEffect</span>(() => {
-  <span class="cmt">// Mount — equivalent to initState</span>
+  <span class="cmt">// Mount — runs after first render</span>
   <span class="fn">fetchData</span>();
   <span class="kw">const</span> sub = <span class="fn">subscribe</span>();
 
   <span class="kw">return</span> () => {
-    <span class="cmt">// Unmount — equivalent to dispose</span>
+    <span class="cmt">// Cleanup on unmount</span>
     sub.<span class="fn">unsubscribe</span>();
+    timer.<span class="fn">clear</span>();
   };
 }, []);
 
 <span class="fn">useEffect</span>(() => {
-  <span class="cmt">// Dep changed — didUpdateWidget</span>
+  <span class="cmt">// Dep changed — re-fetch</span>
   <span class="fn">refetch</span>(userId);
 }, [userId]);</div>
       </div>
       <div class="compare-col">
-        <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>Flutter State lifecycle</div>
+        <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>Flutter State methods</div>
         <div class="code-block"><span class="kw">void</span> <span class="fn">initState</span>() {
   <span class="kw">super</span>.<span class="fn">initState</span>();
-  <span class="cmt">// Runs once on mount. Sync only.</span>
+  <span class="cmt">// Mount — sync only, no await here</span>
   <span class="fn">fetchData</span>();
   _sub = stream.<span class="fn">listen</span>(_onEvent);
 }
 
-<span class="kw">void</span> <span class="fn">didUpdateWidget</span>(<span class="tp">MyWidget</span> old) {
-  <span class="kw">super</span>.<span class="fn">didUpdateWidget</span>(old);
-  <span class="cmt">// Parent rebuilt with new props</span>
-  <span class="kw">if</span> (old.userId != widget.userId)
-    <span class="fn">refetch</span>(widget.userId);
-}
-
 <span class="kw">void</span> <span class="fn">dispose</span>() {
-  <span class="cmt">// Cleanup — cancel streams, timers</span>
+  <span class="cmt">// Cleanup — mirrors useEffect return</span>
   _sub.<span class="fn">cancel</span>();
   _ctrl.<span class="fn">dispose</span>();
   <span class="kw">super</span>.<span class="fn">dispose</span>();
-}</div>
-      </div>
-    </div>
+}
 
-    <div class="divider"><h3>Native app states — Android</h3><div class="divider-line"></div></div>
-
-    <div class="phase-banner fg">🟢 &nbsp;FOREGROUND PHASE — user can see &amp; interact with the app</div>
-    <div class="lifecycle-flow" style="grid-template-columns:1fr;margin-bottom:12px">
-      <div class="lf-col">
-        <div class="lf-step">
-          <div class="lf-bullet fg">1</div>
-          <div class="lf-content">
-            <div class="lf-name android-c">onCreate()</div>
-            <div class="lf-desc">App process is born. Flutter engine boots, Dart VM starts, <code style="font-family:var(--mono);font-size:11px">main()</code> runs. Equivalent to your server-side <code style="font-family:var(--mono);font-size:11px">getServerSideProps</code> executing on cold start. Expensive work here delays your splash screen.</div>
-            <div><span class="lf-badge fg">Flutter: detached → inactive</span></div>
-          </div>
-        </div>
-        <div class="lf-step">
-          <div class="lf-bullet fg">2</div>
-          <div class="lf-content">
-            <div class="lf-name android-c">onStart()</div>
-            <div class="lf-desc">Activity is visible but not interactive yet — imagine a page that's painted but JS hasn't hydrated. Brief. Usually milliseconds.</div>
-          </div>
-        </div>
-        <div class="lf-step">
-          <div class="lf-bullet fg">3</div>
-          <div class="lf-content">
-            <div class="lf-name android-c">onResume()</div>
-            <div class="lf-desc">App is in the foreground, fully interactive, receiving touch events. This is your <strong>"app is live"</strong> state. Resume animations, restart timers, reconnect WebSockets here.</div>
-            <div><span class="lf-badge fg">Flutter: AppLifecycleState.resumed</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="phase-banner bg">⚪ &nbsp;TRANSITION / PARTIAL VISIBILITY — system UI overlays the app</div>
-    <div class="lifecycle-flow" style="grid-template-columns:1fr;margin-bottom:12px">
-      <div class="lf-col">
-        <div class="lf-step">
-          <div class="lf-bullet bg">4</div>
-          <div class="lf-content">
-            <div class="lf-name android-c">onPause()</div>
-            <div class="lf-desc">App is partially obscured — notification shade pulled down, split-screen resize, incoming call screen overlaid, or screen about to turn off. The app is still <em>visible</em> but is losing focus. This is where you <strong>pause video playback, stop camera preview, save lightweight state</strong>. Must return quickly — Android can kill the process if onPause() blocks.</div>
-            <div><span class="lf-badge bg">Flutter: AppLifecycleState.inactive (also: hidden on Android 14+)</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="phase-banner bg">⬛ &nbsp;BACKGROUND PHASE — user switched away, app is invisible</div>
-    <div class="lifecycle-flow" style="grid-template-columns:1fr;margin-bottom:12px">
-      <div class="lf-col">
-        <div class="lf-step">
-          <div class="lf-bullet bg">5</div>
-          <div class="lf-content">
-            <div class="lf-name android-c">onStop()</div>
-            <div class="lf-desc">App is fully invisible — user pressed Home or switched apps. The process still lives in memory. You have a short grace period to release heavy resources: stop music streams, cancel background location if not needed, flush pending analytics. Think of this as the equivalent of a tab going <code style="font-family:var(--mono);font-size:11px">visibilityState = "hidden"</code>.</div>
-            <div><span class="lf-badge bg">Flutter: AppLifecycleState.paused</span></div>
-          </div>
-        </div>
-        <div class="lf-step">
-          <div class="lf-bullet bg">6</div>
-          <div class="lf-content">
-            <div class="lf-name android-c">onRestart()</div>
-            <div class="lf-desc">User comes back to the app from the stopped state (not killed). onStart() → onResume() follow. Restore any state you saved in onStop().</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="phase-banner kill">🔴 &nbsp;TERMINATION — process dies</div>
-    <div class="lifecycle-flow" style="grid-template-columns:1fr;margin-bottom:28px">
-      <div class="lf-col">
-        <div class="lf-step">
-          <div class="lf-bullet kill">7</div>
-          <div class="lf-content">
-            <div class="lf-name android-c">onDestroy()</div>
-            <div class="lf-desc">Activity is destroyed — either the user explicitly closed the app, or Android killed it for memory. <strong>You cannot rely on this running</strong> — Android can kill the process between onStop() and onDestroy() without calling it. Always save critical state in onPause() or onStop(), not here.</div>
-            <div><span class="lf-badge kill">Flutter: AppLifecycleState.detached</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="divider"><h3>Native app states — iOS</h3><div class="divider-line"></div></div>
-    <div class="callout" style="--callout-color:var(--accent-violet)">
-      <span class="callout-icon">🍎</span>
-      <div><strong>iOS is stricter than Android.</strong> iOS can terminate a suspended app with zero warning — no <code>applicationWillTerminate</code> is called. You have ~5 seconds when moving to background before suspension. Background execution requires explicit capability declarations (Background Fetch, Push Notifications, etc.) otherwise your Dart code stops running the moment the user presses Home.</div>
-    </div>
-
-    <div class="phase-banner fg">🟢 &nbsp;ACTIVE STATES</div>
-    <div class="lifecycle-flow" style="grid-template-columns:1fr;margin-bottom:12px">
-      <div class="lf-col">
-        <div class="lf-step">
-          <div class="lf-bullet fg">1</div>
-          <div class="lf-content">
-            <div class="lf-name ios-c">Active</div>
-            <div class="lf-desc">App is in foreground, fully interactive. Equivalent to Android's <code style="font-family:var(--mono);font-size:11px">onResume</code>. Normal operating state.</div>
-            <div><span class="lf-badge fg">Flutter: resumed</span></div>
-          </div>
-        </div>
-        <div class="lf-step">
-          <div class="lf-bullet bg">2</div>
-          <div class="lf-content">
-            <div class="lf-name ios-c">Inactive</div>
-            <div class="lf-desc">Transitional state — app is running but not receiving events. Happens during: incoming phone call overlay, app switcher gesture (user swiping up), Control Center / Notification Center pulled down, Siri activation. <strong>Pause game loops and real-time updates here</strong> — the user isn't interacting but the app is still visible.</div>
-            <div><span class="lf-badge bg">Flutter: inactive</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="phase-banner bg">⬛ &nbsp;BACKGROUND / SUSPENDED</div>
-    <div class="lifecycle-flow" style="grid-template-columns:1fr;margin-bottom:12px">
-      <div class="lf-col">
-        <div class="lf-step">
-          <div class="lf-bullet bg">3</div>
-          <div class="lf-content">
-            <div class="lf-name ios-c">Background (executing)</div>
-            <div class="lf-desc">App has moved to background. You get a short execution window (~5 seconds for most tasks, longer for declared background modes like audio, location, voip). Use <code style="font-family:var(--mono);font-size:11px">beginBackgroundTask</code> in native code to extend this. Flutter's Dart isolate may be paused — use native platform channels for guaranteed background execution.</div>
-            <div><span class="lf-badge bg">Flutter: paused</span></div>
-          </div>
-        </div>
-        <div class="lf-step">
-          <div class="lf-bullet kill">4</div>
-          <div class="lf-content">
-            <div class="lf-name ios-c">Suspended</div>
-            <div class="lf-desc">App is in memory but no code runs. iOS decides when to terminate. Memory pressure → your app is killed silently. On next launch, Flutter calls <code style="font-family:var(--mono);font-size:11px">initState()</code> fresh — there is no "resume from suspended" event. This is why <strong>persistent state (SharedPreferences, SQLite) is the only reliable storage across app launches</strong>.</div>
-            <div><span class="lf-badge kill">iOS can terminate at any time from here</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="divider"><h3>Listening to lifecycle in Flutter</h3><div class="divider-line"></div></div>
-    <div class="compare-grid">
-      <div class="compare-col">
-        <div class="compare-header next-h"><span class="lang-dot next-d"></span>Web Page Visibility API</div>
-        <div class="code-block"><span class="fn">useEffect</span>(() => {
-  <span class="kw">const</span> <span class="fn">onVisibility</span> = () => {
-    <span class="kw">if</span> (document.hidden) {
-      <span class="fn">pauseMedia</span>();
-      analytics.<span class="fn">flush</span>();
-    } <span class="kw">else</span> {
-      <span class="fn">resumeMedia</span>();
-      socket.<span class="fn">reconnect</span>();
-    }
-  };
-  document.<span class="fn">addEventListener</span>(
-    <span class="str">'visibilitychange'</span>, onVisibility
-  );
-  <span class="kw">return</span> () =&gt; document.<span class="fn">removeEventListener</span>(
-    <span class="str">'visibilitychange'</span>, onVisibility
-  );
-}, []);</div>
-      </div>
-      <div class="compare-col">
-        <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>WidgetsBindingObserver mixin</div>
-        <div class="code-block"><span class="kw">class</span> _<span class="tp">MyState</span> <span class="kw">extends</span> <span class="tp">State</span>&lt;<span class="tp">MyPage</span>&gt;
-    <span class="kw">with</span> <span class="tp">WidgetsBindingObserver</span> {
-
-  @<span class="prop">override</span>
-  <span class="kw">void</span> <span class="fn">initState</span>() {
-    <span class="kw">super</span>.<span class="fn">initState</span>();
-    <span class="tp">WidgetsBinding</span>.instance.<span class="fn">addObserver</span>(<span class="kw">this</span>);
-  }
-
-  @<span class="prop">override</span>
-  <span class="kw">void</span> <span class="fn">didChangeAppLifecycleState</span>(
-    <span class="tp">AppLifecycleState</span> state
-  ) {
-    <span class="kw">switch</span> (state) {
-      <span class="kw">case</span> <span class="tp">AppLifecycleState</span>.resumed:
-        <span class="fn">resumeMedia</span>();
-        socket.<span class="fn">reconnect</span>();
-      <span class="kw">case</span> <span class="tp">AppLifecycleState</span>.inactive:
-        <span class="fn">pauseGameLoop</span>();
-      <span class="kw">case</span> <span class="tp">AppLifecycleState</span>.paused:
-        <span class="fn">pauseMedia</span>();
-        analytics.<span class="fn">flush</span>();
-      <span class="kw">case</span> <span class="tp">AppLifecycleState</span>.detached:
-        <span class="cmt">// engine detaching — unreliable</span>
-    }
-  }
-
-  @<span class="prop">override</span>
-  <span class="kw">void</span> <span class="fn">dispose</span>() {
-    <span class="tp">WidgetsBinding</span>.instance.<span class="fn">removeObserver</span>(<span class="kw">this</span>);
-    <span class="kw">super</span>.<span class="fn">dispose</span>();
-  }
+<span class="kw">void</span> <span class="fn">didUpdateWidget</span>(<span class="tp">MyWidget</span> old) {
+  <span class="kw">super</span>.<span class="fn">didUpdateWidget</span>(old);
+  <span class="cmt">// Props changed — mirrors dep array</span>
+  <span class="kw">if</span> (old.userId != widget.userId)
+    <span class="fn">refetch</span>(widget.userId);
 }</div>
       </div>
     </div>
 
     <div class="callout" style="--callout-color:var(--accent-green)">
       <span class="callout-icon">✅</span>
-      <div><strong>Practical lifecycle cheat sheet:</strong> Save lightweight UI state in <code>paused</code> (user went background). Save critical data in <code>inactive</code> (might be killed soon). Restore connections in <code>resumed</code>. Never rely on <code>detached</code> — it may not fire on iOS at all.</div>
+      <div><strong>Practical cheat sheet:</strong> Save lightweight UI state in <code>paused</code>. Save critical data in <code>inactive</code>. Restore connections in <code>resumed</code>. Never rely on <code>detached</code> — it may not fire on iOS at all.</div>
     </div>
+
+<script>
+const LC_DATA = {
+  resumed: {
+    name: 'resumed',
+    nameColor: 'var(--accent-green)',
+    desc: 'App is in the foreground, fully interactive. The user can see and touch the app. This is the normal running state — equivalent to a browser tab that\'s active and visible.',
+    badges: [
+      {cls:'android', text:'Android: onResume()'},
+      {cls:'ios',     text:'iOS: Active'},
+      {cls:'flutter', text:'AppLifecycleState.resumed'},
+    ],
+    phoneState: 'state-resumed',
+    icon: '✅', statusText: 'App Running', statusColor: 'var(--accent-green)', subText: 'Fully interactive',
+    dos: [
+      {icon:'▶️', text:'Resume video/audio playback', cls:'do'},
+      {icon:'🔌', text:'Reconnect WebSockets / polling', cls:'do'},
+      {icon:'🔄', text:'Refresh stale data (check timestamp)', cls:'do'},
+      {icon:'⏱️', text:'Restart animation timers', cls:'do'},
+    ],
+    donts: [
+      {icon:'💰', text:'Don\'t do heavy data load on every resume — check if data is stale first', cls:'dont'},
+      {icon:'🔔', text:'Don\'t request permissions here — feels aggressive', cls:'dont'},
+    ],
+    code: `<span class="kw">@override</span>
+<span class="kw">void</span> <span class="fn">didChangeAppLifecycleState</span>(
+  <span class="tp">AppLifecycleState</span> state
+) {
+  <span class="kw">if</span> (state == <span class="tp">AppLifecycleState</span>.resumed) {
+    <span class="cmt">// Reconnect dropped WebSocket</span>
+    _socket.<span class="fn">reconnect</span>();
+
+    <span class="cmt">// Resume video if it was playing</span>
+    <span class="kw">if</span> (_wasPlaying) _player.<span class="fn">play</span>();
+
+    <span class="cmt">// Refresh if data is older than 5 min</span>
+    <span class="kw">final</span> age = <span class="tp">DateTime</span>.now()
+      .<span class="fn">difference</span>(_lastFetch);
+    <span class="kw">if</span> (age > <span class="tp">Duration</span>(minutes: <span class="num">5</span>))
+      ref.<span class="fn">invalidate</span>(dataProvider);
+  }
+}`,
+    react: `<span class="fn">useEffect</span>(() => {
+  <span class="kw">const</span> <span class="fn">onVisible</span> = () => {
+    <span class="kw">if</span> (!document.hidden) {
+      <span class="cmt">// Equivalent: tab becomes active</span>
+      socket.<span class="fn">reconnect</span>();
+
+      <span class="kw">const</span> age = <span class="tp">Date</span>.now() - lastFetch;
+      <span class="kw">if</span> (age > <span class="num">5</span> * <span class="num">60000</span>)
+        <span class="fn">invalidate</span>(<span class="str">'data'</span>);
+    }
+  };
+  document.<span class="fn">addEventListener</span>(<span class="str">'visibilitychange'</span>, onVisible);
+  <span class="kw">return</span> () => document.<span class="fn">removeEventListener</span>(<span class="str">'visibilitychange'</span>, onVisible);
+}, []);`,
+    log: [{cls:'green', event:'▶  resumed', msg:'AppLifecycleState.resumed fired'}, {cls:'blue', event:'→  socket', msg:'reconnect() called'}, {cls:'blue', event:'→  player', msg:'play() resumed'}],
+  },
+
+  inactive_notif: {
+    name: 'inactive',
+    nameColor: 'var(--accent-amber)',
+    desc: 'User pulled down the notification shade. The app is still visible behind it but is NOT receiving touch events. Triggered by: notification shade, Control Center, app switcher swipe gesture, Siri.',
+    badges: [
+      {cls:'android', text:'Android: onPause()'},
+      {cls:'ios',     text:'iOS: Inactive'},
+      {cls:'flutter', text:'AppLifecycleState.inactive'},
+      {cls:'warn',    text:'App still visible'},
+    ],
+    phoneState: 'state-inactive',
+    icon: '🔔', statusText: 'Notification Shade', statusColor: 'var(--accent-amber)', subText: 'App partially obscured',
+    dos: [
+      {icon:'⏸️', text:'Pause game loop / animation ticker', cls:'do'},
+      {icon:'🎮', text:'Pause real-time multiplayer sync', cls:'do'},
+      {icon:'💾', text:'Save any in-progress form data', cls:'do'},
+    ],
+    donts: [
+      {icon:'🔌', text:'Don\'t disconnect WebSocket — user is coming right back', cls:'dont'},
+      {icon:'⏹️', text:'Don\'t stop media playback — music should keep playing through notifications', cls:'dont'},
+    ],
+    code: `<span class="kw">@override</span>
+<span class="kw">void</span> <span class="fn">didChangeAppLifecycleState</span>(
+  <span class="tp">AppLifecycleState</span> state
+) {
+  <span class="kw">if</span> (state == <span class="tp">AppLifecycleState</span>.inactive) {
+    <span class="cmt">// Pause game but keep connection alive</span>
+    <span class="cmt">// User pulled notification shade down</span>
+    _gameLoop.<span class="fn">pause</span>();
+    _ticker.<span class="fn">stop</span>();
+
+    <span class="cmt">// Save transient UI state</span>
+    _draftText = _controller.text;
+  }
+}`,
+    react: `<span class="cmt">// No direct web equivalent.</span>
+<span class="cmt">// Closest: document.hasFocus()</span>
+
+<span class="fn">useEffect</span>(() => {
+  <span class="kw">const</span> <span class="fn">onBlur</span> = () => {
+    <span class="cmt">// Window lost focus (dialog, devtools)</span>
+    gameLoop.<span class="fn">pause</span>();
+  };
+  <span class="kw">const</span> <span class="fn">onFocus</span> = () => {
+    gameLoop.<span class="fn">resume</span>();
+  };
+  window.<span class="fn">addEventListener</span>(<span class="str">'blur'</span>, onBlur);
+  window.<span class="fn">addEventListener</span>(<span class="str">'focus'</span>, onFocus);
+  <span class="kw">return</span> () => { <span class="cmt">/* cleanup */</span> };
+}, []);`,
+    log: [{cls:'amber', event:'⚠  inactive', msg:'AppLifecycleState.inactive fired'}, {cls:'dim', event:'→  ticker', msg:'stop() — pausing game loop'}, {cls:'dim', event:'→  draft', msg:'saved controller.text'}],
+  },
+
+  inactive_call: {
+    name: 'inactive',
+    nameColor: 'var(--accent-amber)',
+    desc: 'Incoming phone call overlay appears. The OS suspends touch delivery to your app while the call UI is in front. Same Flutter state as pulling the notification shade — but the user may answer and be gone longer.',
+    badges: [
+      {cls:'android', text:'Android: onPause()'},
+      {cls:'ios',     text:'iOS: Inactive → Background'},
+      {cls:'flutter', text:'AppLifecycleState.inactive'},
+      {cls:'warn',    text:'May transition to paused if call accepted'},
+    ],
+    phoneState: 'state-inactive',
+    icon: '📞', statusText: 'Incoming Call', statusColor: 'var(--accent-amber)', subText: 'Touch suspended',
+    dos: [
+      {icon:'⏸️', text:'Pause video call / audio session immediately', cls:'do'},
+      {icon:'💾', text:'Checkpoint any unsaved state', cls:'do'},
+      {icon:'📊', text:'Track that user was mid-task for analytics', cls:'do'},
+    ],
+    donts: [
+      {icon:'🎵', text:'Don\'t keep playing audio — OS will duck your audio anyway via AVAudioSession', cls:'dont'},
+      {icon:'📡', text:'Don\'t assume user will return — they may accept the call and be gone for minutes', cls:'dont'},
+    ],
+    code: `<span class="cmt">// inactive fires for call overlay too.</span>
+<span class="cmt">// On iOS: if call accepted → paused fires next.</span>
+<span class="cmt">// Treat inactive as "prepare for longer absence"</span>
+
+<span class="kw">@override</span>
+<span class="kw">void</span> <span class="fn">didChangeAppLifecycleState</span>(
+  <span class="tp">AppLifecycleState</span> state
+) {
+  <span class="kw">if</span> (state == <span class="tp">AppLifecycleState</span>.inactive) {
+    _videoPlayer.<span class="fn">pause</span>();
+    <span class="cmt">// Release audio session so call can use it</span>
+    _audioSession.<span class="fn">setActive</span>(<span class="kw">false</span>);
+    _lastActiveTime = <span class="tp">DateTime</span>.now();
+  }
+}`,
+    react: `<span class="cmt">// Web has no phone call concept.</span>
+<span class="cmt">// Web Audio API analogy: audio context interrupted</span>
+
+audioContext.<span class="fn">addEventListener</span>(<span class="str">'statechange'</span>, () => {
+  <span class="kw">if</span> (audioContext.state === <span class="str">'interrupted'</span>) {
+    <span class="cmt">// iOS Safari suspends AudioContext</span>
+    <span class="cmt">// during phone calls / AirPlay switches</span>
+    player.<span class="fn">pause</span>();
+  }
+});`,
+    log: [{cls:'amber', event:'⚠  inactive', msg:'AppLifecycleState.inactive fired'}, {cls:'dim', event:'→  video', msg:'pause() called'}, {cls:'dim', event:'→  audio', msg:'session deactivated'}, {cls:'dim', event:'?? waiting', msg:'may transition to paused if call accepted'}],
+  },
+
+  inactive_switcher: {
+    name: 'inactive',
+    nameColor: 'var(--accent-amber)',
+    desc: 'User swiped up or pressed the multitasking button to open the app switcher. The OS blurs your app and shows the task carousel. This is very brief — usually <1 second before either resuming or going to paused.',
+    badges: [
+      {cls:'android', text:'Android: onPause() + Recent Apps'},
+      {cls:'ios',     text:'iOS: Inactive (swipe up gesture)'},
+      {cls:'flutter', text:'AppLifecycleState.inactive'},
+      {cls:'warn',    text:'Very brief — user likely switching away'},
+    ],
+    phoneState: 'state-inactive',
+    icon: '📋', statusText: 'App Switcher', statusColor: 'var(--accent-amber)', subText: 'Multitasking UI open',
+    dos: [
+      {icon:'📸', text:'Blur/redact any sensitive data visible in the screenshot — app switcher captures a snapshot', cls:'do'},
+      {icon:'⏸️', text:'Pause real-time content (live price tickers, chat typing indicators)', cls:'do'},
+    ],
+    donts: [
+      {icon:'🔑', text:'NEVER show sensitive data (cards, passwords) on screen when switching — it appears in the app preview thumbnail', cls:'dont'},
+    ],
+    code: `<span class="cmt">// ⚠ App switcher takes a SCREENSHOT of your UI</span>
+<span class="cmt">// Blur or hide sensitive content on inactive</span>
+
+<span class="kw">@override</span>
+<span class="kw">void</span> <span class="fn">didChangeAppLifecycleState</span>(
+  <span class="tp">AppLifecycleState</span> state
+) {
+  <span class="kw">if</span> (state == <span class="tp">AppLifecycleState</span>.inactive) {
+    setState(() => _blurSensitiveData = <span class="kw">true</span>);
+  } <span class="kw">else if</span> (state == <span class="tp">AppLifecycleState</span>.resumed) {
+    setState(() => _blurSensitiveData = <span class="kw">false</span>);
+  }
+}
+
+<span class="cmt">// In build() wrap sensitive widgets:</span>
+<span class="kw">if</span> (_blurSensitiveData)
+  <span class="tp">BackdropFilter</span>(filter: <span class="tp">ImageFilter</span>.<span class="fn">blur</span>(sigmaX: <span class="num">20</span>))`,
+    react: `<span class="cmt">// Web: no app switcher screenshot</span>
+<span class="cmt">// But: mobile browser tab switching</span>
+<span class="cmt">// Closest: Page Visibility API</span>
+
+document.<span class="fn">addEventListener</span>(<span class="str">'visibilitychange'</span>, () => {
+  <span class="kw">if</span> (document.visibilityState === <span class="str">'hidden'</span>) {
+    <span class="cmt">// Hide sensitive content before screenshot</span>
+    setSensitiveVisible(<span class="kw">false</span>);
+  } <span class="kw">else</span> {
+    setSensitiveVisible(<span class="kw">true</span>);
+  }
+});`,
+    log: [{cls:'amber', event:'⚠  inactive', msg:'App switcher opened — screenshot taken'}, {cls:'dim', event:'→  UI', msg:'blurSensitiveData = true'}, {cls:'dim', event:'??  next', msg:'resumed (if user taps back) or paused (if user picks another app)'}],
+  },
+
+  paused: {
+    name: 'paused',
+    nameColor: '#8888aa',
+    desc: 'User pressed the Home button or system navigated away. The app is fully invisible — in the background, still in memory, but NOT running Dart code. On iOS, you have ~5 seconds before the Dart isolate is frozen.',
+    badges: [
+      {cls:'android', text:'Android: onStop()'},
+      {cls:'ios',     text:'iOS: Background'},
+      {cls:'flutter', text:'AppLifecycleState.paused'},
+      {cls:'warn',    text:'Dart isolate may be frozen soon'},
+    ],
+    phoneState: 'state-paused',
+    icon: '🏠', statusText: 'Home Screen', statusColor: '#6666aa', subText: 'App in background',
+    dos: [
+      {icon:'💾', text:'Flush pending writes to SharedPreferences / database', cls:'do'},
+      {icon:'📊', text:'Flush analytics events to disk or network', cls:'do'},
+      {icon:'🔌', text:'Close WebSocket gracefully (send close frame)', cls:'do'},
+      {icon:'⏸️', text:'Cancel non-essential background timers', cls:'do'},
+      {icon:'📍', text:'Downgrade location accuracy to save battery', cls:'do'},
+    ],
+    donts: [
+      {icon:'📡', text:'Don\'t start new network requests — they may never complete on iOS', cls:'dont'},
+      {icon:'🎵', text:'Unless you\'ve declared background audio capability, don\'t assume audio keeps playing', cls:'dont'},
+    ],
+    code: `<span class="kw">@override</span>
+<span class="kw">void</span> <span class="fn">didChangeAppLifecycleState</span>(
+  <span class="tp">AppLifecycleState</span> state
+) {
+  <span class="kw">if</span> (state == <span class="tp">AppLifecycleState</span>.paused) {
+    <span class="cmt">// Flush analytics before isolate freezes</span>
+    <span class="kw">await</span> analytics.<span class="fn">flush</span>();
+
+    <span class="cmt">// Save unsaved state to disk</span>
+    <span class="kw">await</span> prefs.<span class="fn">setString</span>(
+      <span class="str">'draft'</span>, _controller.text);
+
+    <span class="cmt">// Close WebSocket gracefully</span>
+    <span class="kw">await</span> _socket.<span class="fn">close</span>(
+      code: <span class="num">1000</span>, reason: <span class="str">'app paused'</span>);
+
+    <span class="cmt">// iOS: ~5s before Dart isolate pauses</span>
+    <span class="cmt">// Use background tasks for longer work</span>
+  }
+}`,
+    react: `<span class="cmt">// Equivalent: tab hidden + potential page discard</span>
+<span class="cmt">// Use beforeunload + visibilitychange</span>
+
+document.<span class="fn">addEventListener</span>(<span class="str">'visibilitychange'</span>, () => {
+  <span class="kw">if</span> (document.hidden) {
+    <span class="cmt">// Sync-only: navigator.sendBeacon for analytics</span>
+    navigator.<span class="fn">sendBeacon</span>(<span class="str">'/analytics'</span>, payload);
+
+    <span class="cmt">// Save to localStorage (sync)</span>
+    localStorage.<span class="fn">setItem</span>(<span class="str">'draft'</span>, editorValue);
+  }
+});`,
+    log: [{cls:'dim', event:'⬛ paused', msg:'AppLifecycleState.paused fired'}, {cls:'blue', event:'→  analytics', msg:'flush() — 12 events sent'}, {cls:'blue', event:'→  prefs', msg:'setString(\'draft\', ...)'}, {cls:'blue', event:'→  socket', msg:'close(1000, \'app paused\')'}, {cls:'dim', event:'⏳ iOS', msg:'Dart isolate will freeze in ~5s'}],
+  },
+
+  hidden: {
+    name: 'paused / hidden',
+    nameColor: '#6666aa',
+    desc: 'Another app is fully in the foreground. Your app is in the recent apps list but not visible. The process is alive but Dart code is not running. Android: onStop() fired. iOS: background execution window ticking down.',
+    badges: [
+      {cls:'android', text:'Android: onStop() — process alive'},
+      {cls:'ios',     text:'iOS: Background → Suspended'},
+      {cls:'flutter', text:'AppLifecycleState.paused'},
+    ],
+    phoneState: 'state-hidden',
+    icon: '📱', statusText: 'In Background', statusColor: '#555577', subText: 'Another app visible',
+    dos: [
+      {icon:'🔔', text:'Background push notifications still work — handled by OS, not Dart', cls:'do'},
+      {icon:'📍', text:'Background location (if capability declared) continues natively', cls:'do'},
+    ],
+    donts: [
+      {icon:'💻', text:'Don\'t expect Dart code to run — isolate is paused', cls:'dont'},
+      {icon:'🔄', text:'Don\'t poll APIs in background without a background service plugin', cls:'dont'},
+    ],
+    code: `<span class="cmt">// Once paused fires, Dart stops running.</span>
+<span class="cmt">// Background work needs native code via</span>
+<span class="cmt">// platform channels or WorkManager (Android)</span>
+
+<span class="cmt">// flutter_background_service plugin:</span>
+<span class="kw">await</span> <span class="tp">FlutterBackgroundService</span>.<span class="fn">configure</span>(
+  androidConfiguration: <span class="tp">AndroidConfiguration</span>(
+    onStart: onServiceStart,
+    isForegroundMode: <span class="kw">false</span>,
+    autoStart: <span class="kw">false</span>,
+  ),
+  iosConfiguration: <span class="tp">IosConfiguration</span>(
+    onForeground: onForeground,
+    onBackground: onBackground,
+  ),
+);`,
+    react: `<span class="cmt">// Web: page may be discarded from bfcache</span>
+<span class="cmt">// Service Workers handle background tasks</span>
+
+<span class="cmt">// Register background sync:</span>
+<span class="kw">const</span> reg = <span class="kw">await</span> navigator.serviceWorker.<span class="prop">ready</span>;
+<span class="kw">await</span> reg.sync.<span class="fn">register</span>(<span class="str">'sync-analytics'</span>);
+
+<span class="cmt">// SW handles it when network is available</span>
+<span class="cmt">// even if page is closed — closest analogue</span>
+<span class="cmt">// to Flutter background service</span>`,
+    log: [{cls:'dim', event:'⬛ paused', msg:'App moved to background — Dart frozen'}, {cls:'dim', event:'🔔 OS', msg:'Push notifications handled natively'}, {cls:'dim', event:'⏳ iOS', msg:'Will suspend after background window expires'}],
+  },
+
+  resumed_back: {
+    name: 'resumed',
+    nameColor: 'var(--accent-green)',
+    desc: 'User tapped the app icon, swiped in from recents, or the app received a notification tap. Flutter fires resumed — this is a fresh re-entry. The widget tree is still alive (state is preserved) but connections may have dropped.',
+    badges: [
+      {cls:'android', text:'Android: onRestart() → onStart() → onResume()'},
+      {cls:'ios',     text:'iOS: Background → Active'},
+      {cls:'flutter', text:'AppLifecycleState.resumed'},
+      {cls:'warn',    text:'State preserved — no initState() re-run'},
+    ],
+    phoneState: 'state-resumed',
+    icon: '🔄', statusText: 'Back in Focus', statusColor: 'var(--accent-green)', subText: 'Returning from background',
+    dos: [
+      {icon:'🔌', text:'Reconnect WebSocket (was closed on pause)', cls:'do'},
+      {icon:'🔄', text:'Check if token expired while in background', cls:'do'},
+      {icon:'📅', text:'Refresh stale time-sensitive data (live scores, prices)', cls:'do'},
+      {icon:'▶️', text:'Resume media if wasPlaying flag is set', cls:'do'},
+    ],
+    donts: [
+      {icon:'🔄', text:'Don\'t reload everything unconditionally — check staleness first or users lose their scroll position', cls:'dont'},
+    ],
+    code: `<span class="kw">DateTime</span>? _pausedAt;
+
+<span class="kw">@override</span>
+<span class="kw">void</span> <span class="fn">didChangeAppLifecycleState</span>(
+  <span class="tp">AppLifecycleState</span> state
+) {
+  <span class="kw">switch</span> (state) {
+    <span class="kw">case</span> <span class="tp">AppLifecycleState</span>.paused:
+      _pausedAt = <span class="tp">DateTime</span>.now();
+      _socket.<span class="fn">close</span>();
+
+    <span class="kw">case</span> <span class="tp">AppLifecycleState</span>.resumed:
+      <span class="kw">final</span> away = <span class="tp">DateTime</span>.now()
+        .<span class="fn">difference</span>(_pausedAt ?? <span class="tp">DateTime</span>.now());
+
+      _socket.<span class="fn">reconnect</span>();
+
+      <span class="cmt">// Only refresh if away > 10 minutes</span>
+      <span class="kw">if</span> (away.inMinutes > <span class="num">10</span>)
+        ref.<span class="fn">invalidate</span>(feedProvider);
+
+      <span class="kw">if</span> (_wasPlaying) _player.<span class="fn">play</span>();
+  }
+}`,
+    react: `<span class="kw">const</span> pausedAtRef = <span class="fn">useRef</span>(<span class="kw">null</span>);
+
+<span class="fn">useEffect</span>(() => {
+  <span class="kw">const</span> <span class="fn">onVisibility</span> = () => {
+    <span class="kw">if</span> (document.hidden) {
+      pausedAtRef.current = <span class="tp">Date</span>.now();
+      socket.<span class="fn">close</span>();
+    } <span class="kw">else</span> {
+      <span class="kw">const</span> away = <span class="tp">Date</span>.now() - pausedAtRef.current;
+      socket.<span class="fn">reconnect</span>();
+      <span class="kw">if</span> (away > <span class="num">10</span> * <span class="num">60000</span>)
+        <span class="fn">invalidateQuery</span>(<span class="str">'feed'</span>);
+    }
+  };
+  document.<span class="fn">addEventListener</span>(<span class="str">'visibilitychange'</span>, onVisibility);
+  <span class="kw">return</span> () => document.<span class="fn">removeEventListener</span>(<span class="str">'visibilitychange'</span>, onVisibility);
+}, []);`,
+    log: [{cls:'green', event:'▶  resumed', msg:'AppLifecycleState.resumed fired'}, {cls:'blue', event:'→  socket', msg:'reconnect() — was away 4m 32s'}, {cls:'dim', event:'→  feed', msg:'not stale (< 10 min) — skipping reload'}, {cls:'blue', event:'→  player', msg:'play() resumed (wasPlaying=true)'}],
+  },
+
+  detached: {
+    name: 'detached',
+    nameColor: 'var(--accent-coral)',
+    desc: 'App is being killed — user swiped it away in the task switcher, or the OS terminated it for memory pressure. The Flutter engine is detaching. On iOS this callback is unreliable and may never fire. Never rely on this for critical data saving.',
+    badges: [
+      {cls:'android', text:'Android: onDestroy()'},
+      {cls:'ios',     text:'iOS: Not Running (may not fire!)'},
+      {cls:'flutter', text:'AppLifecycleState.detached'},
+      {cls:'warn',    text:'UNRELIABLE — may not fire on iOS'},
+    ],
+    phoneState: 'state-detached',
+    icon: '💀', statusText: 'App Killed', statusColor: 'var(--accent-coral)', subText: 'Process terminating',
+    dos: [
+      {icon:'🧹', text:'Clean up any native resources if this fires', cls:'do'},
+      {icon:'📋', text:'Log a crash breadcrumb if your analytics supports it', cls:'do'},
+    ],
+    donts: [
+      {icon:'💾', text:'NEVER rely on detached for saving data — save in paused/inactive instead', cls:'dont'},
+      {icon:'📡', text:'Don\'t start network requests — they will be killed mid-flight', cls:'dont'},
+      {icon:'🍎', text:'On iOS: applicationWillTerminate is only called if app is suspended first AND iOS decides to tell you. Treat all important saves as if detached doesn\'t exist.', cls:'dont'},
+    ],
+    code: `<span class="cmt">// ⚠ UNRELIABLE — do NOT save state here.</span>
+<span class="cmt">// Save in paused/inactive instead!</span>
+<span class="cmt">// This should only clean up native handles.</span>
+
+<span class="kw">@override</span>
+<span class="kw">void</span> <span class="fn">didChangeAppLifecycleState</span>(
+  <span class="tp">AppLifecycleState</span> state
+) {
+  <span class="kw">if</span> (state == <span class="tp">AppLifecycleState</span>.detached) {
+    <span class="cmt">// OK: release native camera/sensor handles</span>
+    _camera.<span class="fn">dispose</span>();
+    _sensor.<span class="fn">cancel</span>();
+
+    <span class="cmt">// ❌ NOT OK: this may never complete</span>
+    <span class="cmt">// await prefs.setString(...) ← WRONG</span>
+    <span class="cmt">// await analytics.flush()   ← WRONG</span>
+  }
+}`,
+    react: `<span class="cmt">// Web: window beforeunload + pagehide</span>
+<span class="cmt">// Both have the same unreliability problem</span>
+<span class="cmt">// on mobile browsers</span>
+
+window.<span class="fn">addEventListener</span>(<span class="str">'pagehide'</span>, (e) => {
+  <span class="kw">if</span> (!e.persisted) {
+    <span class="cmt">// Page is truly being unloaded</span>
+    <span class="cmt">// Use sendBeacon — only sync API that works here</span>
+    navigator.<span class="fn">sendBeacon</span>(<span class="str">'/beacon'</span>, data);
+    <span class="cmt">// ❌ await fetch() here will be killed</span>
+  }
+});`,
+    log: [{cls:'coral', event:'💀 detached', msg:'AppLifecycleState.detached — process dying'}, {cls:'dim', event:'→  camera', msg:'dispose() called'}, {cls:'coral', event:'⚠  warn', msg:'On iOS this may not have fired at all'}, {cls:'dim', event:'END', msg:'Dart VM shutting down'}],
+  },
+
+  initstate: {
+    name: 'initState()',
+    nameColor: 'var(--accent-flutter)',
+    desc: 'The widget has been inserted into the widget tree for the first time. Equivalent to React\'s useEffect(()=>{...},[]) — runs once on mount. This is where you subscribe to streams, fetch initial data, and set up controllers.',
+    badges: [
+      {cls:'flutter', text:'Widget lifecycle — not app lifecycle'},
+      {cls:'flutter', text:'Runs synchronously — no await here'},
+    ],
+    phoneState: 'state-resumed',
+    icon: '🚀', statusText: 'Widget Mounting', statusColor: 'var(--accent-flutter)', subText: 'initState() firing',
+    dos: [
+      {icon:'📡', text:'Start async data fetch (call a Future, don\'t await)', cls:'do'},
+      {icon:'🔊', text:'Subscribe to streams or change notifiers', cls:'do'},
+      {icon:'🎛️', text:'Initialize controllers (TextEditingController, AnimationController)', cls:'do'},
+      {icon:'👀', text:'Add WidgetsBindingObserver if you need app lifecycle', cls:'do'},
+    ],
+    donts: [
+      {icon:'⏳', text:'Don\'t await anything directly — initState is synchronous. Use a helper method instead.', cls:'dont'},
+      {icon:'🏗️', text:'Don\'t call setState() inside initState — widget isn\'t mounted yet', cls:'dont'},
+    ],
+    code: `<span class="kw">class</span> _<span class="tp">FeedPageState</span> <span class="kw">extends</span> <span class="tp">State</span>&lt;<span class="tp">FeedPage</span>&gt;
+    <span class="kw">with</span> <span class="tp">WidgetsBindingObserver</span> {
+
+  <span class="kw">late</span> <span class="tp">TextEditingController</span> _searchCtrl;
+  <span class="tp">StreamSubscription</span>? _sub;
+
+  <span class="kw">@override</span>
+  <span class="kw">void</span> <span class="fn">initState</span>() {
+    <span class="kw">super</span>.<span class="fn">initState</span>();
+    <span class="cmt">// ✅ Initialize controllers</span>
+    _searchCtrl = <span class="tp">TextEditingController</span>();
+
+    <span class="cmt">// ✅ Subscribe to stream</span>
+    _sub = _socket.stream.<span class="fn">listen</span>(_onMessage);
+
+    <span class="cmt">// ✅ Add lifecycle observer</span>
+    <span class="tp">WidgetsBinding</span>.instance.<span class="fn">addObserver</span>(<span class="kw">this</span>);
+
+    <span class="cmt">// ✅ Kick off async fetch (don't await)</span>
+    <span class="fn">_loadInitialData</span>();
+  }
+
+  <span class="tp">Future</span>&lt;<span class="kw">void</span>&gt; <span class="fn">_loadInitialData</span>() <span class="kw">async</span> {
+    <span class="kmt">// Safe to await here — separate method</span>
+    <span class="kw">final</span> data = <span class="kw">await</span> ref.<span class="fn">read</span>(feedProvider);
+    <span class="kw">if</span> (mounted) setState(() => _feed = data);
+  }
+}`,
+    react: `<span class="cmt">// Exact equivalent: useEffect with empty deps</span>
+<span class="fn">useEffect</span>(() => {
+  <span class="cmt">// ✅ Initialize on mount</span>
+  <span class="kw">const</span> sub = socket.<span class="fn">subscribe</span>(onMessage);
+
+  <span class="cmt">// ✅ Kick off async fetch</span>
+  <span class="fn">fetchInitialData</span>().then(data => {
+    <span class="fn">setFeed</span>(data);
+  });
+
+  <span class="kw">return</span> () => {
+    <span class="cmt">// Cleanup = Flutter's dispose()</span>
+    sub.<span class="fn">unsubscribe</span>();
+    socket.<span class="fn">close</span>();
+  };
+}, []); <span class="cmt">// ← empty array = run once = initState</span>`,
+    log: [{cls:'blue', event:'🚀 mount', msg:'initState() called'}, {cls:'blue', event:'→  ctrl', msg:'TextEditingController created'}, {cls:'blue', event:'→  stream', msg:'socket.stream.listen() subscribed'}, {cls:'blue', event:'→  fetch', msg:'_loadInitialData() kicked off (async)'}],
+  },
+
+  didupdate: {
+    name: 'didUpdateWidget()',
+    nameColor: 'var(--accent-flutter)',
+    desc: 'The parent widget rebuilt and passed new props to this widget. Equivalent to useEffect with dependencies — runs when incoming props change. Compare old.prop to widget.prop to decide whether to react.',
+    badges: [
+      {cls:'flutter', text:'Widget lifecycle — prop changed'},
+      {cls:'flutter', text:'Compare old vs new to avoid loops'},
+    ],
+    phoneState: 'state-resumed',
+    icon: '🔄', statusText: 'Props Changed', statusColor: 'var(--accent-flutter)', subText: 'didUpdateWidget() firing',
+    dos: [
+      {icon:'🔍', text:'Compare old.prop != widget.prop before doing anything — avoid unnecessary work', cls:'do'},
+      {icon:'🔄', text:'Re-fetch data if a key ID prop changed', cls:'do'},
+      {icon:'🔌', text:'Re-connect to a different stream if the source prop changed', cls:'do'},
+    ],
+    donts: [
+      {icon:'🔁', text:'Don\'t unconditionally call setState() here — it will cause an infinite loop', cls:'dont'},
+      {icon:'🆕', text:'Don\'t recreate expensive objects if the prop didn\'t actually change', cls:'dont'},
+    ],
+    code: `<span class="kw">@override</span>
+<span class="kw">void</span> <span class="fn">didUpdateWidget</span>(<span class="tp">FeedPage</span> old) {
+  <span class="kw">super</span>.<span class="fn">didUpdateWidget</span>(old);
+
+  <span class="cmt">// ✅ Only react if userId actually changed</span>
+  <span class="kw">if</span> (old.userId != widget.userId) {
+    <span class="cmt">// Cancel old subscription</span>
+    _sub?.<span class="fn">cancel</span>();
+
+    <span class="cmt">// Subscribe to new user's stream</span>
+    _sub = <span class="tp">UserService</span>
+      .<span class="fn">streamFor</span>(widget.userId)
+      .<span class="fn">listen</span>(_onData);
+
+    <span class="cmt">// Re-fetch for new user</span>
+    <span class="fn">_loadInitialData</span>();
+  }
+
+  <span class="cmt">// ✅ Update controller if text prop changed</span>
+  <span class="kw">if</span> (old.initialText != widget.initialText) {
+    _ctrl.text = widget.initialText ?? <span class="str">''</span>;
+  }
+}`,
+    react: `<span class="cmt">// Exact equivalent: useEffect with deps array</span>
+<span class="fn">useEffect</span>(() => {
+  <span class="kw">const</span> sub = <span class="tp">UserService</span>
+    .<span class="fn">streamFor</span>(userId)
+    .<span class="fn">subscribe</span>(onData);
+
+  <span class="fn">fetchUserData</span>(userId);
+
+  <span class="kw">return</span> () => sub.<span class="fn">unsubscribe</span>();
+}, [userId]); <span class="cmt">// ← userId in deps = didUpdateWidget check</span>
+
+<span class="fn">useEffect</span>(() => {
+  setValue(initialText ?? <span class="str">''</span>);
+}, [initialText]);`,
+    log: [{cls:'blue', event:'🔄 update', msg:'didUpdateWidget() — userId changed'}, {cls:'dim', event:'→  old', msg:'old.userId = "user_123"'}, {cls:'dim', event:'→  new', msg:'widget.userId = "user_456"'}, {cls:'blue', event:'→  sub', msg:'cancel() old stream, listen() new stream'}, {cls:'blue', event:'→  fetch', msg:'_loadInitialData() for new user'}],
+  },
+
+  dispose: {
+    name: 'dispose()',
+    nameColor: 'var(--accent-coral)',
+    desc: 'The widget is being permanently removed from the tree — navigating away, conditional rendering removed it, or the app is closing. This is the return function of React\'s useEffect. Cancel everything here to prevent memory leaks.',
+    badges: [
+      {cls:'flutter', text:'Widget lifecycle — widget removed'},
+      {cls:'warn',    text:'Must call super.dispose() last'},
+    ],
+    phoneState: 'state-resumed',
+    icon: '🗑️', statusText: 'Widget Unmounting', statusColor: 'var(--accent-coral)', subText: 'dispose() firing',
+    dos: [
+      {icon:'❌', text:'Cancel all StreamSubscriptions', cls:'do'},
+      {icon:'❌', text:'Dispose all Controllers (Text, Animation, Scroll, Tab)', cls:'do'},
+      {icon:'❌', text:'Remove WidgetsBindingObserver if added in initState', cls:'do'},
+      {icon:'❌', text:'Cancel any active Timers', cls:'do'},
+      {icon:'✅', text:'Call super.dispose() last — not first', cls:'do'},
+    ],
+    donts: [
+      {icon:'🔄', text:'Don\'t call setState() after dispose — widget is gone. Always guard async callbacks with if (mounted)', cls:'dont'},
+      {icon:'🔍', text:'Don\'t forget to dispose TextEditingController — it\'s the most common memory leak in Flutter', cls:'dont'},
+    ],
+    code: `<span class="kw">@override</span>
+<span class="kw">void</span> <span class="fn">dispose</span>() {
+  <span class="cmt">// ✅ Cancel stream subscriptions</span>
+  _socketSub?.<span class="fn">cancel</span>();
+  _userSub?.<span class="fn">cancel</span>();
+
+  <span class="cmt">// ✅ Dispose all controllers</span>
+  _searchCtrl.<span class="fn">dispose</span>();
+  _animCtrl.<span class="fn">dispose</span>();
+  _scrollCtrl.<span class="fn">dispose</span>();
+
+  <span class="cmt">// ✅ Remove lifecycle observer</span>
+  <span class="tp">WidgetsBinding</span>.instance.<span class="fn">removeObserver</span>(<span class="kw">this</span>);
+
+  <span class="cmt">// ✅ Cancel timers</span>
+  _debounceTimer?.<span class="fn">cancel</span>();
+
+  <span class="cmt">// ✅ super.dispose() LAST</span>
+  <span class="kw">super</span>.<span class="fn">dispose</span>();
+}
+
+<span class="cmt">// Always guard async callbacks:</span>
+<span class="kw">void</span> <span class="fn">_onData</span>(data) {
+  <span class="kw">if</span> (!mounted) <span class="kw">return</span>; <span class="cmt">// ← guard!</span>
+  <span class="fn">setState</span>(() => _items = data);
+}`,
+    react: `<span class="cmt">// Exact equivalent: useEffect return function</span>
+<span class="fn">useEffect</span>(() => {
+  <span class="kw">const</span> sub1 = socket.<span class="fn">subscribe</span>(onMessage);
+  <span class="kw">const</span> sub2 = userService.<span class="fn">subscribe</span>(onUser);
+  <span class="kw">const</span> timer = <span class="fn">setInterval</span>(tick, <span class="num">1000</span>);
+
+  <span class="kw">return</span> () => {
+    <span class="cmt">// This IS Flutter's dispose()</span>
+    sub1.<span class="fn">unsubscribe</span>();
+    sub2.<span class="fn">unsubscribe</span>();
+    <span class="fn">clearInterval</span>(timer);
+    <span class="cmt">// React handles ref cleanup automatically</span>
+    <span class="cmt">// Flutter requires manual .dispose() calls</span>
+  };
+}, []);`,
+    log: [{cls:'coral', event:'🗑️ dispose', msg:'dispose() called — widget leaving tree'}, {cls:'dim', event:'→  subs', msg:'socketSub.cancel(), userSub.cancel()'}, {cls:'dim', event:'→  ctrls', msg:'searchCtrl.dispose(), animCtrl.dispose()'}, {cls:'dim', event:'→  observer', msg:'removeObserver(this)'}, {cls:'dim', event:'→  super', msg:'super.dispose() — State cleaned up'}],
+  },
+};
+
+let lcCurrentState = 'resumed';
+let lcCurrentTab = 'what';
+
+function lcSelect(stateKey) {
+  lcCurrentState = stateKey;
+  const d = LC_DATA[stateKey];
+  if (!d) return;
+
+  // Update trigger buttons
+  document.querySelectorAll('.lc-trigger-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.state === stateKey);
+  });
+
+  // Update phone
+  const phone = document.getElementById('lc-phone');
+  phone.className = 'lc-phone ' + d.phoneState;
+  document.getElementById('lc-icon').textContent = d.icon;
+  const statusEl = document.getElementById('lc-status');
+  statusEl.textContent = d.statusText;
+  statusEl.style.color = d.statusColor;
+  document.getElementById('lc-sub').textContent = d.subText;
+
+  // Update header
+  const content = document.getElementById('lc-detail-content');
+  content.className = 'lc-detail-content';
+  void content.offsetWidth; // reflow
+  content.className = 'lc-detail-content';
+
+  document.getElementById('lc-state-name').textContent = d.name;
+  document.getElementById('lc-state-name').style.color = d.nameColor;
+  document.getElementById('lc-state-desc').textContent = d.desc;
+
+  const badgesEl = document.getElementById('lc-state-badges');
+  badgesEl.innerHTML = d.badges.map(b =>
+    `<span class="lc-badge ${b.cls}">${b.text}</span>`
+  ).join('');
+
+  // Update what-to-do pane
+  const all = [...(d.dos || []), ...(d.donts || [])];
+  const doItems = (d.dos || []).map(i =>
+    `<div class="lc-what-item ${i.cls}"><span class="lc-what-icon">${i.icon}</span><span>${i.text}</span></div>`
+  ).join('');
+  const dontItems = (d.donts || []).map(i =>
+    `<div class="lc-what-item ${i.cls}"><span class="lc-what-icon">${i.icon}</span><span>${i.text}</span></div>`
+  ).join('');
+  document.getElementById('lc-what-content').innerHTML = `
+    <div class="lc-what-row">
+      <div class="lc-what-col">
+        <h5>✅ Do this</h5>
+        ${doItems || '<div class="lc-what-item neutral"><span class="lc-what-icon">—</span><span>No specific actions required</span></div>'}
+      </div>
+      <div class="lc-what-col">
+        <h5>❌ Avoid this</h5>
+        ${dontItems || '<div class="lc-what-item neutral"><span class="lc-what-icon">—</span><span>No specific warnings</span></div>'}
+      </div>
+    </div>`;
+
+  // Update code pane
+  document.getElementById('lc-code-content').innerHTML = d.code || '<span class="cmt">// No code example for this state</span>';
+
+  // Update react pane
+  document.getElementById('lc-react-content').innerHTML = d.react || '<span class="cmt">// No React equivalent</span>';
+
+  // Add to event log
+  lcAddLog(d.log || []);
+
+  // Re-render current tab
+  lcTab(lcCurrentTab);
+}
+
+function lcTab(tab) {
+  lcCurrentTab = tab;
+  document.querySelectorAll('.lc-tab').forEach(t => {
+    t.classList.toggle('active', t.textContent.toLowerCase().replace(/[. ]/g,'').startsWith(tab.replace(/[. ]/g,'')));
+  });
+  document.querySelectorAll('.lc-pane').forEach(p => p.classList.remove('active'));
+  const pane = document.getElementById('pane-' + tab);
+  if (pane) pane.classList.add('active');
+}
+
+const lcLogEntries = [];
+function lcAddLog(entries) {
+  const container = document.getElementById('lc-log');
+  const now = new Date();
+  const ts = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+  entries.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'lc-log-entry';
+    div.innerHTML = `<span class="log-ts">${ts}</span><span class="log-event ${e.cls}">${e.event}</span><span class="log-msg">${e.msg}</span>`;
+    container.prepend(div);
+  });
+}
+function lcClearLog() {
+  document.getElementById('lc-log').innerHTML = '';
+}
+
+// Tab click handler — fix matching
+document.querySelectorAll('.lc-tab').forEach((t, i) => {
+  const tabs = ['what','code','react','log'];
+  t.onclick = () => lcTab(tabs[i]);
+});
+
+// Initialize
+lcSelect('resumed');
+</script>
 
   </div>
   <div class="section-nav">
