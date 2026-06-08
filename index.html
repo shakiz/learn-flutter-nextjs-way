@@ -2259,237 +2259,1346 @@ lcSelect('resumed');
   <div class="section-hero" style="--hero-glow:#38bdf818">
     <div class="step-pill">Step 04 · Platform</div>
     <h2>Navigation<br><strong>in depth</strong></h2>
-    <p class="subtitle">Flutter's navigation is a physical back-stack of screens. No file-system magic — but it gives you fine-grained control over back gestures, deep links, nested navigators, and modal flows that Next.js can't express natively.</p>
+    <p class="subtitle">Flutter's navigation is a physical back-stack of screens. Use the interactive simulator below to push, pop, replace, and nest routes — and see exactly what code each operation generates.</p>
   </div>
   <div class="section-body">
 
+<style>
+/* ══ NAV SIMULATOR STYLES ══ */
+.nav-sim {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+  margin-bottom: 36px;
+  align-items: start;
+}
+
+/* ── Left panel: controls + info ── */
+.nav-left { display: flex; flex-direction: column; gap: 16px; }
+
+/* Operation buttons grid */
+.nav-ops-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.nav-op-btn {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.nav-op-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--op-color, var(--accent-flutter));
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.nav-op-btn:hover { border-color: var(--op-color, var(--accent-flutter)); color: var(--text); background: var(--surface2); }
+.nav-op-btn:hover::before, .nav-op-btn.just-fired::before { opacity: 1; }
+.nav-op-btn.just-fired {
+  border-color: var(--op-color, var(--accent-flutter));
+  background: color-mix(in srgb, var(--op-color, var(--accent-flutter)) 8%, transparent);
+  animation: opFire 0.35s ease;
+}
+@keyframes opFire {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+.nav-op-btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+.nob-name { font-weight: 600; font-size: 12.5px; color: var(--op-color, var(--text)); }
+.nob-sig  { font-size: 10px; color: var(--text-dim); }
+.nob-desc { font-size: 10.5px; color: var(--text-muted); line-height: 1.4; margin-top: 2px; }
+
+/* Info panel under buttons */
+.nav-info-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.nav-info-header {
+  padding: 10px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-info-content { padding: 14px 16px; animation: infoIn 0.2s ease; }
+@keyframes infoIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+.nav-info-op-name {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 700;
+  font-style: italic;
+  margin-bottom: 6px;
+}
+.nav-info-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+.nav-info-next { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+
+/* Code display */
+.nav-code-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.nav-code-tabs-row {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.nav-ctab {
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition: all 0.14s;
+  letter-spacing: 0.04em;
+}
+.nav-ctab:hover { color: var(--text-muted); }
+.nav-ctab.active { color: var(--accent-next); background: #38bdf808; }
+
+/* Log panel */
+.nav-log-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.nav-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+.nav-log-title { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+.nav-log-clear { font-family: var(--mono); font-size: 10px; color: var(--text-dim); background: none; border: none; cursor: pointer; }
+.nav-log-clear:hover { color: var(--accent-coral); }
+.nav-log-entries {
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scrollbar-width: thin;
+}
+.nav-log-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  animation: logIn 0.18s ease;
+}
+.nav-log-ts { color: var(--text-dim); font-size: 10px; flex-shrink: 0; }
+.nav-log-op { font-weight: 600; flex-shrink: 0; }
+.nav-log-msg { color: var(--text-muted); font-size: 10.5px; }
+
+/* ── Right panel: Phone mockup ── */
+.nav-phone-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  position: sticky;
+  top: 20px;
+}
+
+/* Tab switcher on phone */
+.nav-tab-switcher {
+  display: flex;
+  gap: 5px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  width: 100%;
+  max-width: 340px;
+}
+.nav-tab-btn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  cursor: pointer;
+  background: none;
+  transition: all 0.15s;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+.nav-tab-btn:hover { color: var(--text-muted); }
+.nav-tab-btn.active { background: var(--surface); border-color: var(--border-active); color: var(--text); }
+
+/* Phone chrome */
+.nav-phone {
+  width: 200px;
+  background: #0a0a12;
+  border: 2.5px solid #2a2a44;
+  border-radius: 32px;
+  box-shadow: 0 0 0 4px #15151e, 0 24px 70px #0008;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+.nav-phone::before {
+  content: '';
+  position: absolute;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  width: 56px; height: 9px;
+  background: #15151e;
+  border-radius: 5px;
+  z-index: 10;
+}
+/* status bar */
+.nav-statusbar {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 14px 4px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: #55556a;
+  margin-top: 24px;
+  flex-shrink: 0;
+}
+
+/* Screen area */
+.nav-screen-area {
+  position: relative;
+  height: 460px;
+  overflow: hidden;
+}
+
+/* Individual screen cards stacked */
+.nav-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s ease;
+}
+/* Screens below the top slide to the left */
+.nav-screen.below { transform: translateX(-30%); opacity: 0.4; }
+/* Hidden screens (stacked below below) */
+.nav-screen.hidden { transform: translateX(-50%); opacity: 0; pointer-events: none; }
+/* Active (top) screen */
+.nav-screen.active { transform: translateX(0); opacity: 1; z-index: 5; }
+/* Entering from right */
+.nav-screen.entering { transform: translateX(100%); opacity: 0; }
+/* Exiting to right */
+.nav-screen.exiting { transform: translateX(105%); opacity: 0; z-index: 6; }
+/* Modal slides up from bottom */
+.nav-screen.modal-enter { transform: translateY(100%); opacity: 0; }
+.nav-screen.modal-active { transform: translateY(0); opacity: 1; z-index: 7; border-radius: 16px 16px 0 0; }
+.nav-screen.modal-exit  { transform: translateY(110%); opacity: 0; }
+
+/* AppBar inside screen */
+.nav-appbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+.nav-back-btn {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: none;
+  color: var(--accent-flutter);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.nav-back-btn:hover { background: rgba(255,255,255,0.12); }
+.nav-back-btn:disabled { opacity: 0.2; cursor: default; }
+.nav-appbar-title {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.nav-appbar-route {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+/* Screen body */
+.nav-screen-body {
+  flex: 1;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+/* Screen-specific content */
+.ns-section-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.ns-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: background 0.14s;
+  border: 1px solid transparent;
+}
+.ns-list-item:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.08); }
+.ns-item-icon { font-size: 18px; flex-shrink: 0; }
+.ns-item-text { flex: 1; }
+.ns-item-name { font-size: 12px; font-weight: 500; color: var(--text); }
+.ns-item-sub  { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
+.ns-item-arrow { font-size: 10px; color: var(--text-dim); }
+
+.ns-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+.ns-badge.green  { background: #4ade8018; color: var(--accent-green); border: 1px solid #4ade8030; }
+.ns-badge.blue   { background: #38bdf818; color: var(--accent-next);  border: 1px solid #38bdf830; }
+.ns-badge.amber  { background: #fbbf2418; color: var(--accent-amber); border: 1px solid #fbbf2430; }
+.ns-badge.coral  { background: #fb718518; color: var(--accent-coral); border: 1px solid #fb718530; }
+.ns-badge.violet { background: #a78bfa18; color: var(--accent-violet);border: 1px solid #a78bfa30; }
+
+.ns-detail-hero {
+  background: linear-gradient(135deg, #1a1a30, #12122a);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.ns-detail-emoji { font-size: 36px; margin-bottom: 6px; display: block; }
+.ns-detail-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.ns-detail-price { font-family: var(--mono); font-size: 13px; color: var(--accent-green); }
+
+.ns-action-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.14s;
+  text-align: center;
+}
+.ns-action-btn.primary { background: var(--accent-flutter); border-color: var(--accent-flutter); color: #000; }
+.ns-action-btn.primary:hover { opacity: 0.85; }
+.ns-action-btn.secondary { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12); color: var(--text-muted); }
+.ns-action-btn.secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+.ns-result-box {
+  background: rgba(74,222,128,0.08);
+  border: 1px solid rgba(74,222,128,0.2);
+  border-radius: 8px;
+  padding: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent-green);
+  text-align: center;
+  display: none;
+}
+.ns-result-box.visible { display: block; animation: resultShow 0.3s ease; }
+@keyframes resultShow { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
+
+.ns-modal-handle {
+  width: 36px; height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.15);
+  margin: 8px auto 4px;
+  flex-shrink: 0;
+}
+.ns-form-field {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.ns-form-label { font-size: 10px; color: var(--text-dim); font-family: var(--mono); margin-bottom: 3px; }
+
+/* Bottom navigation bar on phone */
+.nav-bottombar {
+  display: flex;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding: 6px 0 10px;
+  flex-shrink: 0;
+}
+.nav-tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all 0.15s;
+}
+.nav-tab-icon { font-size: 18px; transition: transform 0.15s; }
+.nav-tab-label { font-family: var(--mono); font-size: 8px; color: var(--text-dim); transition: color 0.15s; }
+.nav-tab-item.active .nav-tab-icon { transform: scale(1.15); }
+.nav-tab-item.active .nav-tab-label { color: var(--accent-flutter); }
+
+/* Stack depth indicator */
+.nav-stack-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  flex-shrink: 0;
+}
+.nav-si-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+.nav-si-dots { display: flex; gap: 4px; }
+.nav-si-dot {
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  background: var(--text-dim);
+  transition: all 0.25s;
+}
+.nav-si-dot.active { background: var(--accent-flutter); box-shadow: 0 0 6px var(--accent-flutter); }
+.nav-si-dot.below  { background: #3a3a5a; }
+
+/* URL bar under phone */
+.nav-url-bar {
+  width: 100%;
+  max-width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-url-label { font-size: 9px; color: var(--text-dim); flex-shrink: 0; }
+.nav-url-value { color: var(--accent-next); transition: all 0.2s; }
+
+@media (max-width: 900px) {
+  .nav-sim { grid-template-columns: 1fr; }
+  .nav-phone-panel { position: static; }
+  .nav-ops-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+
     <div class="callout" style="--callout-color:var(--accent-next)">
       <span class="callout-icon">📚</span>
-      <div><strong>The core mental model:</strong> Flutter maintains a <strong>stack of routes</strong>. Push adds a screen on top. Pop removes the top screen and returns to the one below. The OS back button / back gesture always pops. <code>go_router</code> wraps this with URL-style path matching — the stack is reconstructed from the URL, just like a browser.</div>
+      <div><strong>The core mental model:</strong> Flutter maintains a <strong>stack of routes</strong>. Push adds a screen on top. Pop removes the top screen. <code>go_router</code> adds URL-style path matching on top of this stack. Use the simulator below to feel the difference between every navigation operation.</div>
     </div>
 
-    <div class="divider"><h3>The navigation stack visualised</h3><div class="divider-line"></div></div>
+    <!-- ── INTERACTIVE NAVIGATOR ── -->
+    <div class="nav-sim" id="nav-sim">
 
-    <div class="stack-diagram">
-      <div class="stack-title">Four states of the route stack — each column is a moment in time</div>
-      <div class="stack-col-wrap">
-        <div class="stack-col">
-          <div class="stack-arrow">↓ push()</div>
-          <div class="stack-frame sf-active">HomeScreen</div>
-          <div class="stack-col-label">Initial</div>
-        </div>
-        <div class="stack-col">
-          <div class="stack-arrow">↓ push()</div>
-          <div class="stack-frame sf-active">ProductDetail</div>
-          <div class="stack-frame sf-below">HomeScreen</div>
-          <div class="stack-col-label">After push</div>
-        </div>
-        <div class="stack-col">
-          <div class="stack-arrow">↓ push()</div>
-          <div class="stack-frame sf-active">Checkout</div>
-          <div class="stack-frame sf-below">ProductDetail</div>
-          <div class="stack-frame sf-ghost">HomeScreen</div>
-          <div class="stack-col-label">Deep in flow</div>
-        </div>
-        <div class="stack-col">
-          <div class="stack-arrow">↑ pop(result)</div>
-          <div class="stack-frame sf-active">ProductDetail</div>
-          <div class="stack-frame sf-ghost">HomeScreen</div>
-          <div style="height:34px"></div>
-          <div class="stack-col-label">After back</div>
-        </div>
-      </div>
-    </div>
+      <!-- Left controls -->
+      <div class="nav-left">
 
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:0.16em;text-transform:uppercase;padding-bottom:4px">Navigation operations</div>
+
+        <div class="nav-ops-grid">
+          <button class="nav-op-btn" style="--op-color:var(--accent-green)" onclick="navOp('push')" id="nav-btn-push">
+            <span class="nob-name">push()</span>
+            <span class="nob-sig">context.push('/route')</span>
+            <span class="nob-desc">Add a new screen on top. Back button works.</span>
+          </button>
+          <button class="nav-op-btn" style="--op-color:var(--accent-coral)" onclick="navOp('pop')" id="nav-btn-pop">
+            <span class="nob-name">pop()</span>
+            <span class="nob-sig">context.pop()</span>
+            <span class="nob-desc">Remove the top screen. Return to previous.</span>
+          </button>
+          <button class="nav-op-btn" style="--op-color:var(--accent-amber)" onclick="navOp('go')" id="nav-btn-go">
+            <span class="nob-name">go()</span>
+            <span class="nob-sig">context.go('/route')</span>
+            <span class="nob-desc">Replace entire stack. No back button.</span>
+          </button>
+          <button class="nav-op-btn" style="--op-color:var(--accent-next)" onclick="navOp('replace')" id="nav-btn-replace">
+            <span class="nob-name">pushReplacement()</span>
+            <span class="nob-sig">context.pushReplacement()</span>
+            <span class="nob-desc">Replace current screen, preserve below.</span>
+          </button>
+          <button class="nav-op-btn" style="--op-color:var(--accent-violet)" onclick="navOp('modal')" id="nav-btn-modal">
+            <span class="nob-name">showModalSheet()</span>
+            <span class="nob-sig">showModalBottomSheet()</span>
+            <span class="nob-desc">Slide a sheet from the bottom. Awaitable.</span>
+          </button>
+          <button class="nav-op-btn" style="--op-color:#e879f9" onclick="navOp('popWithResult')" id="nav-btn-result">
+            <span class="nob-name">pop(result)</span>
+            <span class="nob-sig">Navigator.pop(ctx, value)</span>
+            <span class="nob-desc">Pop and return a value to the caller.</span>
+          </button>
+          <button class="nav-op-btn" style="--op-color:#f97316" onclick="navOp('popUntil')" id="nav-btn-until">
+            <span class="nob-name">popUntil()</span>
+            <span class="nob-sig">Navigator.popUntil()</span>
+            <span class="nob-desc">Pop multiple screens until a named route.</span>
+          </button>
+          <button class="nav-op-btn" style="--op-color:#94a3b8" onclick="navOp('reset')" id="nav-btn-reset">
+            <span class="nob-name">reset</span>
+            <span class="nob-sig">—</span>
+            <span class="nob-desc">Restart the simulator from scratch.</span>
+          </button>
+        </div>
+
+        <!-- Info box -->
+        <div class="nav-info-box">
+          <div class="nav-info-header">
+            <span>Last operation</span>
+            <span id="nav-info-flutter-eq" style="color:var(--accent-flutter)"></span>
+          </div>
+          <div class="nav-info-content" id="nav-info-content">
+            <div class="nav-info-op-name" id="nav-info-name" style="color:var(--accent-green)">—</div>
+            <div class="nav-info-desc" id="nav-info-desc" style="color:var(--text-dim)">Press an operation above to begin. The phone on the right will animate every transition in real time.</div>
+            <div class="nav-info-next" id="nav-info-next"></div>
+          </div>
+        </div>
+
+        <!-- Code display -->
+        <div class="nav-code-box">
+          <div class="nav-code-tabs-row">
+            <div class="nav-ctab active" onclick="navCodeTab('flutter')" id="nct-flutter">Flutter</div>
+            <div class="nav-ctab" onclick="navCodeTab('nextjs')" id="nct-nextjs">Next.js equiv.</div>
+          </div>
+          <div class="code-block" id="nav-code-display" style="font-size:11.5px;min-height:80px"><span class="cmt">// Press an operation to see the code</span></div>
+        </div>
+
+        <!-- Log -->
+        <div class="nav-log-wrap">
+          <div class="nav-log-header">
+            <span class="nav-log-title">Navigation log</span>
+            <button class="nav-log-clear" onclick="navClearLog()">clear</button>
+          </div>
+          <div class="nav-log-entries" id="nav-log"></div>
+        </div>
+
+      </div><!-- end nav-left -->
+
+      <!-- Right: phone -->
+      <div class="nav-phone-panel">
+
+        <div class="nav-tab-switcher">
+          <button class="nav-tab-btn active" id="ntb-single" onclick="navPhoneMode('single')">Single Stack</button>
+          <button class="nav-tab-btn" id="ntb-tabs" onclick="navPhoneMode('tabs')">Nested Tabs</button>
+        </div>
+
+        <div class="nav-phone" id="nav-phone">
+          <div class="nav-statusbar">
+            <span>9:41</span><span>●●● WiFi 🔋</span>
+          </div>
+          <div class="nav-screen-area" id="nav-screen-area">
+            <!-- screens injected by JS -->
+          </div>
+          <div class="nav-stack-indicator">
+            <span class="nav-si-label">STACK</span>
+            <div class="nav-si-dots" id="nav-si-dots"></div>
+            <span class="nav-si-label" id="nav-si-depth" style="margin-left:auto"></span>
+          </div>
+          <div class="nav-bottombar" id="nav-bottombar" style="display:none">
+            <button class="nav-tab-item active" id="ntab-home" onclick="navSwitchTab('home')">
+              <span class="nav-tab-icon">🏠</span>
+              <span class="nav-tab-label">Home</span>
+            </button>
+            <button class="nav-tab-item" id="ntab-shop" onclick="navSwitchTab('shop')">
+              <span class="nav-tab-icon">🛍️</span>
+              <span class="nav-tab-label">Shop</span>
+            </button>
+            <button class="nav-tab-item" id="ntab-profile" onclick="navSwitchTab('profile')">
+              <span class="nav-tab-icon">👤</span>
+              <span class="nav-tab-label">Profile</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="nav-url-bar">
+          <span class="nav-url-label">ROUTE</span>
+          <span class="nav-url-value" id="nav-url-val">/</span>
+        </div>
+
+      </div><!-- end nav-phone-panel -->
+    </div><!-- end nav-sim -->
+
+    <!-- ── Reference code section ── -->
+    <div class="divider"><h3>go_router vs Next.js — setup comparison</h3><div class="divider-line"></div></div>
     <div class="compare-grid">
       <div class="compare-col">
-        <div class="compare-header next-h"><span class="lang-dot next-d"></span>Next.js routing</div>
-        <div class="code-block"><span class="cmt">// File system = routes. Declarative.</span>
+        <div class="compare-header next-h"><span class="lang-dot next-d"></span>Next.js App Router</div>
+        <div class="code-block"><span class="cmt">// File system = routes automatically</span>
 app/
-  page.tsx             <span class="cmt">→ /</span>
-  products/page.tsx    <span class="cmt">→ /products</span>
+  page.tsx               <span class="cmt">→ /</span>
+  products/page.tsx      <span class="cmt">→ /products</span>
   products/[id]/page.tsx <span class="cmt">→ /products/:id</span>
+  checkout/page.tsx      <span class="cmt">→ /checkout</span>
 
-<span class="cmt">// Imperative navigate</span>
-router.<span class="fn">push</span>(<span class="str">'/products/42'</span>);
-router.<span class="fn">replace</span>(<span class="str">'/login'</span>); <span class="cmt">// no back entry</span>
-router.<span class="fn">back</span>();             <span class="cmt">// browser back</span>
-
-<span class="cmt">// Pass state via URL only</span>
-router.<span class="fn">push</span>(<span class="str">'/search?q=flutter'</span>);</div>
+<span class="cmt">// Navigate programmatically</span>
+<span class="kw">import</span> { useRouter } <span class="kw">from</span> <span class="str">'next/navigation'</span>;
+<span class="kw">const</span> router = <span class="fn">useRouter</span>();
+router.<span class="fn">push</span>(<span class="str">'/products/42'</span>);  <span class="cmt">// history push</span>
+router.<span class="fn">replace</span>(<span class="str">'/login'</span>);     <span class="cmt">// replace entry</span>
+router.<span class="fn">back</span>();                  <span class="cmt">// go back</span></div>
       </div>
       <div class="compare-col">
-        <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>go_router</div>
-        <div class="code-block"><span class="cmt">// Explicit route declaration</span>
-<span class="tp">GoRouter</span>(routes: [
+        <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>go_router setup</div>
+        <div class="code-block"><span class="cmt">// Explicit route config in code</span>
+<span class="kw">final</span> router = <span class="tp">GoRouter</span>(routes: [
   <span class="tp">GoRoute</span>(path: <span class="str">'/'</span>,
     builder: (_, __) =&gt; <span class="tp">HomeScreen</span>()),
+  <span class="tp">GoRoute</span>(path: <span class="str">'/products'</span>,
+    builder: (_, __) =&gt; <span class="tp">ProductsScreen</span>()),
   <span class="tp">GoRoute</span>(path: <span class="str">'/products/:id'</span>,
     builder: (_, s) =&gt; <span class="tp">ProductDetail</span>(
       id: s.<span class="prop">pathParameters</span>[<span class="str">'id'</span>]!)),
+  <span class="tp">GoRoute</span>(path: <span class="str">'/checkout'</span>,
+    builder: (_, __) =&gt; <span class="tp">CheckoutScreen</span>()),
 ]);
 
-context.<span class="fn">push</span>(<span class="str">'/products/42'</span>);  <span class="cmt">// adds to stack</span>
-context.<span class="fn">go</span>(<span class="str">'/login'</span>);          <span class="cmt">// replaces stack</span>
-context.<span class="fn">pop</span>();                  <span class="cmt">// OS back</span>
-
-<span class="cmt">// Pass objects — not just URL params</span>
-context.<span class="fn">push</span>(<span class="str">'/detail'</span>, extra: product);</div>
+context.<span class="fn">push</span>(<span class="str">'/products/42'</span>); <span class="cmt">// ← stack grows</span>
+context.<span class="fn">go</span>(<span class="str">'/home'</span>);          <span class="cmt">// ← stack replaced</span>
+context.<span class="fn">pop</span>();                 <span class="cmt">// ← back</span></div>
       </div>
     </div>
 
-    <div class="divider"><h3>go() vs push() — the critical difference</h3><div class="divider-line"></div></div>
-    <div class="cards-2">
-      <div class="card" style="--card-top:var(--accent-green)">
-        <span class="card-icon">↗️</span>
-        <h4>context.push()</h4>
-        <p>Adds a new route on top of the stack. Back button returns to the previous screen. Use for drilldown flows: list → detail → edit. The user expects to be able to go back.</p>
-        <div style="margin-top:10px"><span class="tag green">Stack grows</span><span class="tag green">Back button works</span></div>
-      </div>
-      <div class="card" style="--card-top:var(--accent-amber)">
-        <span class="card-icon">↪️</span>
-        <h4>context.go()</h4>
-        <p>Replaces the entire stack with the new route tree. Back button has nothing to go back to. Use for authentication flows (after login → go Home), tab switches, and error recovery where back would be confusing.</p>
-        <div style="margin-top:10px"><span class="tag amber">Stack replaced</span><span class="tag amber">No back</span></div>
-      </div>
-    </div>
-
-    <div class="divider"><h3>Nested navigators — tabs with their own back-stacks</h3><div class="divider-line"></div></div>
-
-    <div class="callout" style="--callout-color:var(--accent-violet)">
-      <span class="callout-icon">🗂️</span>
-      <div><strong>This is the biggest difference from web routing.</strong> Mobile apps typically have a bottom tab bar where each tab maintains its <em>own independent stack</em>. Navigate deep inside the "Shop" tab, switch to "Profile" tab, come back — you're still deep in "Shop". This is nested navigation and it has no direct equivalent in Next.js App Router.</div>
-    </div>
-
-    <div class="nested-diagram">
-      <div class="shell-box">
-        <div class="shell-label">ROOT NAVIGATOR (BottomNavigationBar)</div>
-        <div style="display:flex;gap:8px;margin-bottom:14px;margin-top:8px">
-          <div style="flex:1;text-align:center;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border-active);font-family:var(--mono);font-size:11px;color:var(--accent-flutter)">🏠 Home</div>
-          <div style="flex:1;text-align:center;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--accent-flutter);font-family:var(--mono);font-size:11px;color:var(--accent-flutter)">🛍️ Shop ← active</div>
-          <div style="flex:1;text-align:center;padding:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);font-family:var(--mono);font-size:11px;color:var(--text-dim)">👤 Profile</div>
-        </div>
-        <div class="shell-inner">
-          <div class="shell-box" style="opacity:0.4">
-            <div class="shell-label">HOME TAB STACK</div>
-            <div class="route-box" style="margin-top:8px">
-              <div class="route-name muted">HomeScreen</div>
-              <div class="lf-desc" style="font-size:11px;color:var(--text-dim)">Tab preserved but inactive</div>
-            </div>
-          </div>
-          <div class="shell-box">
-            <div class="shell-label">SHOP TAB STACK — active</div>
-            <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
-              <div class="route-box active-route">
-                <div class="route-name blue">ProductDetailScreen</div>
-                <div class="lf-desc" style="font-size:11px">Currently visible, top of stack</div>
-              </div>
-              <div class="route-box">
-                <div class="route-name muted">CategoryScreen</div>
-                <div class="lf-desc" style="font-size:11px">Below — back goes here</div>
-              </div>
-              <div class="route-box">
-                <div class="route-name muted">ShopHomeScreen</div>
-                <div class="lf-desc" style="font-size:11px">Root of this tab</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="compare-grid">
-      <div class="compare-col">
-        <div class="compare-header next-h"><span class="lang-dot next-d"></span>Next.js (no true nested stacks)</div>
-        <div class="code-block"><span class="cmt">// Tabs in Next.js = URL segments</span>
-<span class="cmt">// /shop/category/product</span>
-<span class="cmt">// Back goes to /shop/category</span>
-<span class="cmt">// No per-tab memory</span>
-
-<span class="cmt">// Closest: layout.tsx + usePathname</span>
-<span class="kw">export default function</span> <span class="fn">ShopLayout</span>({
-  children
-}: { children: <span class="tp">React.ReactNode</span> }) {
-  <span class="kw">return</span> (
-    &lt;<span class="tp">div</span>&gt;
-      &lt;<span class="tp">TabBar</span> /&gt;
-      {children}
-    &lt;/<span class="tp">div</span>&gt;
-  );
-}</div>
-      </div>
-      <div class="compare-col">
-        <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>go_router StatefulShellRoute</div>
-        <div class="code-block"><span class="tp">StatefulShellRoute</span>.<span class="fn">indexedStack</span>(
-  builder: (_, __, shell) =&gt;
-    <span class="tp">ScaffoldWithNavBar</span>(shell: shell),
-  branches: [
-    <span class="tp">StatefulShellBranch</span>(routes: [
-      <span class="tp">GoRoute</span>(
-        path: <span class="str">'/home'</span>,
-        builder: (_, __) =&gt; <span class="tp">HomeScreen</span>(),
-      ),
-    ]),
-    <span class="tp">StatefulShellBranch</span>(routes: [
-      <span class="tp">GoRoute</span>(
-        path: <span class="str">'/shop'</span>,
-        builder: (_, __) =&gt; <span class="tp">ShopScreen</span>(),
-        routes: [         <span class="cmt">// sub-routes</span>
-          <span class="tp">GoRoute</span>(
-            path: <span class="str">'category/:id'</span>,
-            builder: (_, s) =&gt; <span class="tp">CategoryScreen</span>(
-              id: s.<span class="prop">pathParameters</span>[<span class="str">'id'</span>]!),
-          ),
-        ],
-      ),
-    ]),
-  ],
-)</div>
-      </div>
-    </div>
-
-    <div class="divider"><h3>Returning data from a pushed route</h3><div class="divider-line"></div></div>
+    <div class="divider"><h3>Returning data from a screen — a Flutter superpower</h3><div class="divider-line"></div></div>
     <div class="callout" style="--callout-color:var(--accent-green)">
       <span class="callout-icon">💡</span>
-      <div><strong>A pattern Next.js can't do natively:</strong> In Flutter you can push a screen and <code>await</code> the result when the user pops back. Like a modal that returns a value. No URL params needed.</div>
+      <div><strong>No web equivalent:</strong> Push a screen, <code>await</code> the result when the user pops. Like a Promise that resolves when the user dismisses the screen. Try the <strong>pop(result)</strong> operation in the simulator above.</div>
     </div>
     <div class="compare-grid">
       <div class="compare-col">
-        <div class="compare-header next-h"><span class="lang-dot next-d"></span>Web workaround (URL state)</div>
-        <div class="code-block"><span class="cmt">// No native "return value" from route</span>
-<span class="cmt">// Must use URL params or global state</span>
+        <div class="compare-header next-h"><span class="lang-dot next-d"></span>Web workaround</div>
+        <div class="code-block"><span class="cmt">// No native "return value" — use state</span>
 router.<span class="fn">push</span>(<span class="str">'/pick-color?from=settings'</span>);
-
-<span class="cmt">// ColorPicker reads ?from and</span>
-<span class="cmt">// saves to localStorage / zustand</span>
-<span class="cmt">// then router.back()</span>
-
-<span class="cmt">// Settings page polls store on mount</span>
+<span class="cmt">// ColorPicker saves to zustand, then router.back()</span>
 <span class="fn">useEffect</span>(() =&gt; {
-  <span class="kw">const</span> picked = colorStore.<span class="fn">getPicked</span>();
+  <span class="kw">const</span> picked = store.<span class="fn">getPickedColor</span>();
   <span class="kw">if</span> (picked) <span class="fn">setColor</span>(picked);
 }, []);</div>
       </div>
       <div class="compare-col">
-        <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>Flutter — await a route result</div>
-        <div class="code-block"><span class="cmt">// Push and await the popped value</span>
+        <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>Flutter await pop</div>
+        <div class="code-block"><span class="cmt">// Caller awaits the result directly</span>
 <span class="kw">final</span> color = <span class="kw">await</span> <span class="tp">Navigator</span>.<span class="fn">push</span>&lt;<span class="tp">Color</span>&gt;(
   context,
   <span class="tp">MaterialPageRoute</span>(
-    builder: (_) =&gt; <span class="tp">ColorPickerScreen</span>(),
-  ),
+    builder: (_) =&gt; <span class="tp">ColorPickerScreen</span>()),
 );
-
-<span class="cmt">// color is non-null if user picked</span>
-<span class="kw">if</span> (color != <span class="kw">null</span>) <span class="fn">setState</span>(() =&gt; _color = color);
+<span class="kw">if</span> (color != <span class="kw">null</span>) setState(() =&gt; _color = color);
 
 <span class="cmt">// ColorPickerScreen pops with value</span>
-<span class="tp">ElevatedButton</span>(
-  onPressed: () =&gt; <span class="tp">Navigator</span>.<span class="fn">pop</span>(context, <span class="tp">Colors</span>.blue),
-  child: <span class="tp">Text</span>(<span class="str">'Pick blue'</span>),
-)</div>
+<span class="tp">Navigator</span>.<span class="fn">pop</span>(context, <span class="tp">Colors</span>.blue);</div>
       </div>
     </div>
+
+<script>
+/* ══ NAVIGATION SIMULATOR ══ */
+
+const SCREENS = {
+  home: {
+    title: 'HomeScreen',
+    route: '/',
+    color: '#38bdf8',
+    render: () => `
+      <div class="ns-section-label">Featured</div>
+      <div class="ns-list-item" onclick="navOp('push')">
+        <span class="ns-item-icon">🎧</span>
+        <div class="ns-item-text">
+          <div class="ns-item-name">AirPods Pro</div>
+          <div class="ns-item-sub">$249 · tap to push ProductDetail</div>
+        </div>
+        <span class="ns-item-arrow">›</span>
+      </div>
+      <div class="ns-list-item" onclick="navOp('push')">
+        <span class="ns-item-icon">⌚</span>
+        <div class="ns-item-text">
+          <div class="ns-item-name">Apple Watch S9</div>
+          <div class="ns-item-sub">$399 · tap to push</div>
+        </div>
+        <span class="ns-item-arrow">›</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+        <span class="ns-badge blue">Root screen</span>
+        <span class="ns-badge green">Cannot pop — nothing below</span>
+      </div>`
+  },
+  products: {
+    title: 'ProductDetail',
+    route: '/products/42',
+    color: '#4ade80',
+    render: () => `
+      <div class="ns-detail-hero">
+        <span class="ns-detail-emoji">🎧</span>
+        <div class="ns-detail-name">AirPods Pro (2nd gen)</div>
+        <div class="ns-detail-price">$249.00</div>
+      </div>
+      <button class="ns-action-btn primary" onclick="navOp('push')" style="font-size:11px">Add to Cart → push CheckoutScreen</button>
+      <button class="ns-action-btn secondary" onclick="navOp('popWithResult')" style="font-size:11px">Pop with result (color picked)</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="ns-badge green">push() got us here</span>
+        <span class="ns-badge blue">Back button = pop()</span>
+      </div>`
+  },
+  checkout: {
+    title: 'CheckoutScreen',
+    route: '/checkout',
+    color: '#fbbf24',
+    render: () => `
+      <div class="ns-section-label">Order summary</div>
+      <div class="ns-list-item">
+        <span class="ns-item-icon">🎧</span>
+        <div class="ns-item-text">
+          <div class="ns-item-name">AirPods Pro</div>
+          <div class="ns-item-sub">$249.00</div>
+        </div>
+      </div>
+      <button class="ns-action-btn primary" onclick="navOp('go')" style="font-size:11px">Place Order → go('/success')</button>
+      <div class="ns-section-label" style="margin-top:2px">After order: go() replaces entire stack</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="ns-badge amber">Deep in stack</span>
+        <span class="ns-badge coral">go() will clear history</span>
+      </div>`
+  },
+  success: {
+    title: 'OrderSuccess',
+    route: '/order/success',
+    color: '#4ade80',
+    render: () => `
+      <div style="text-align:center;padding:20px 10px">
+        <div style="font-size:48px;margin-bottom:12px">🎉</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Order placed!</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-bottom:16px">go_router replaced the entire stack.<br>Back button is disabled — can't go back to checkout.</div>
+      </div>
+      <button class="ns-action-btn primary" onclick="navOp('go')" style="font-size:11px">Back to Home → go('/')</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        <span class="ns-badge amber">go() — no back entry</span>
+      </div>`
+  },
+  login: {
+    title: 'LoginScreen',
+    route: '/login',
+    color: '#a78bfa',
+    render: () => `
+      <div class="ns-section-label">Sign in</div>
+      <div>
+        <div class="ns-form-label">Email</div>
+        <div class="ns-form-field">sakhawat@cefalo.com</div>
+      </div>
+      <div>
+        <div class="ns-form-label">Password</div>
+        <div class="ns-form-field">••••••••</div>
+      </div>
+      <button class="ns-action-btn primary" onclick="navOp('replace')" style="font-size:11px;margin-top:4px">Login → pushReplacement('/home')</button>
+      <div class="ns-section-label" style="margin-top:4px">pushReplacement replaces THIS screen but keeps stack below</div>`
+  },
+  modal: {
+    title: 'ColorPickerSheet',
+    route: '(modal)',
+    color: '#a78bfa',
+    isModal: true,
+    render: () => `
+      <div class="ns-section-label">Pick a colour</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        ${['#67d9fc','#4ade80','#fbbf24','#fb7185','#a78bfa','#f97316'].map(c =>
+          `<div onclick="navOp('popWithResult')" style="width:36px;height:36px;border-radius:50%;background:${c};cursor:pointer;border:2px solid rgba(255,255,255,0.15);transition:transform 0.15s" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></div>`
+        ).join('')}
+      </div>
+      <button class="ns-action-btn primary" onclick="navOp('popWithResult')" style="font-size:11px">Confirm → pop(Color.blue)</button>
+      <button class="ns-action-btn secondary" onclick="navOp('pop')" style="font-size:11px;margin-top:4px">Cancel → pop(null)</button>
+      <div class="ns-section-label" style="margin-top:4px">Caller is awaiting this pop()</div>`
+  },
+};
+
+const OP_DATA = {
+  push: {
+    name: 'context.push()',
+    color: 'var(--accent-green)',
+    desc: 'Pushes a new route onto the navigator stack. The new screen slides in from the right. The previous screen is preserved below — pressing the OS back button will pop() back to it.',
+    nextScreen: 'products',
+    flutter: `<span class="cmt">// push() — adds to stack, back button works</span>
+<span class="tp">ElevatedButton</span>(
+  onPressed: () =>
+    context.<span class="fn">push</span>(<span class="str">'/products/42'</span>),
+  child: <span class="tp">Text</span>(<span class="str">'View Product'</span>),
+)
+
+<span class="cmt">// With extra object (not just URL params)</span>
+context.<span class="fn">push</span>(<span class="str">'/products/42'</span>,
+  extra: product);
+
+<span class="cmt">// Await result from the pushed screen</span>
+<span class="kw">final</span> result = <span class="kw">await</span> context.<span class="fn">push</span>(<span class="str">'/pick-color'</span>);`,
+    nextjs: `<span class="cmt">// router.push() — adds history entry</span>
+<span class="kw">const</span> router = <span class="fn">useRouter</span>();
+
+router.<span class="fn">push</span>(<span class="str">'/products/42'</span>);
+
+<span class="cmt">// With URL params</span>
+router.<span class="fn">push</span>(<span class="str">\`/products/\${id}?variant=blue\`</span>);
+
+<span class="cmt">// No await — web can't return values from routes</span>
+<span class="cmt">// Must use global state or URL params instead</span>`,
+  },
+  pop: {
+    name: 'context.pop()',
+    color: 'var(--accent-coral)',
+    desc: 'Removes the top route from the stack. The screen slides back to the right and is destroyed. If the stack has only one screen, pop() does nothing (prevents blank screen).',
+    flutter: `<span class="cmt">// pop() — remove top screen, back to previous</span>
+<span class="tp">IconButton</span>(
+  icon: <span class="tp">Icon</span>(<span class="tp">Icons</span>.arrow_back),
+  onPressed: () => context.<span class="fn">pop</span>(),
+)
+
+<span class="cmt">// Check if we can pop before calling</span>
+<span class="kw">if</span> (context.<span class="fn">canPop</span>()) context.<span class="fn">pop</span>();
+
+<span class="cmt">// The OS back button calls pop() automatically</span>
+<span class="cmt">// AppBar automatically shows ← if stack depth > 1</span>`,
+    nextjs: `<span class="cmt">// router.back() — browser history back</span>
+<span class="kw">const</span> router = <span class="fn">useRouter</span>();
+
+router.<span class="fn">back</span>();
+
+<span class="cmt">// Check if we can go back:</span>
+<span class="kw">if</span> (window.history.length > <span class="num">1</span>)
+  router.<span class="fn">back</span>();
+<span class="kw">else</span>
+  router.<span class="fn">push</span>(<span class="str">'/'</span>); <span class="cmt">// fallback</span>`,
+  },
+  go: {
+    name: 'context.go()',
+    color: 'var(--accent-amber)',
+    desc: 'Navigates to a route and replaces the entire navigation stack. The back button will have nothing to go back to. Use for: after login (go Home), after logout (go Login), after checkout (go Success). Never use push() for these — the user should not be able to press Back after completing a flow.',
+    nextScreen: 'success',
+    flutter: `<span class="cmt">// go() — replaces entire stack</span>
+<span class="cmt">// Use after completing a flow (checkout, login)</span>
+
+<span class="cmt">// After successful login:</span>
+context.<span class="fn">go</span>(<span class="str">'/'</span>); <span class="cmt">// ← user can't go back to login</span>
+
+<span class="cmt">// After checkout:</span>
+context.<span class="fn">go</span>(<span class="str">'/order/success'</span>);
+
+<span class="cmt">// Tab switching (StatefulShellRoute):</span>
+context.<span class="fn">go</span>(<span class="str">'/shop'</span>); <span class="cmt">// ← switches tab, preserves tab stack</span>`,
+    nextjs: `<span class="cmt">// router.replace() — replaces history entry</span>
+<span class="cmt">// Similar but only replaces ONE entry, not the whole stack</span>
+
+router.<span class="fn">replace</span>(<span class="str">'/'</span>);
+
+<span class="cmt">// To truly clear history in web, use:</span>
+window.history.<span class="fn">replaceState</span>({}, <span class="str">''</span>, <span class="str">'/'</span>);
+router.<span class="fn">push</span>(<span class="str">'/'</span>);
+
+<span class="cmt">// Note: Next.js has no concept of clearing</span>
+<span class="cmt">// the entire nav stack like Flutter's go()</span>`,
+  },
+  replace: {
+    name: 'pushReplacement()',
+    color: 'var(--accent-next)',
+    desc: 'Replaces the current top screen with a new one, but keeps everything below it intact. Use for: login screen → home (so back goes to whatever was before login, not back to the login form). In go_router: context.pushReplacement().',
+    nextScreen: 'home',
+    flutter: `<span class="cmt">// pushReplacement — swap current, keep stack below</span>
+
+<span class="cmt">// After login: replace login with home</span>
+<span class="cmt">// Stack before: [Splash, Login]</span>
+<span class="cmt">// Stack after:  [Splash, Home]</span>
+context.<span class="fn">pushReplacement</span>(<span class="str">'/home'</span>);
+
+<span class="cmt">// go_router shorthand:</span>
+context.<span class="fn">pushReplacement</span>(<span class="str">'/home'</span>);
+
+<span class="cmt">// Raw Navigator:</span>
+<span class="tp">Navigator</span>.<span class="fn">pushReplacement</span>(context,
+  <span class="tp">MaterialPageRoute</span>(builder: (_) =&gt; <span class="tp">HomeScreen</span>()));`,
+    nextjs: `<span class="cmt">// router.replace() — closest equivalent</span>
+
+<span class="cmt">// Replaces current history entry</span>
+router.<span class="fn">replace</span>(<span class="str">'/home'</span>);
+
+<span class="cmt">// In practice, same effect as pushReplacement</span>
+<span class="cmt">// because web history is a flat list,</span>
+<span class="cmt">// not a stack with independent entries</span>`,
+  },
+  modal: {
+    name: 'showModalBottomSheet()',
+    color: 'var(--accent-violet)',
+    desc: 'Shows a sheet that slides up from the bottom of the screen, overlaying the current screen. The current screen stays alive and visible behind it. Dismissing the sheet (swipe down or tap outside) pops the modal route.',
+    flutter: `<span class="cmt">// Modal bottom sheet — slides up from bottom</span>
+
+<span class="kw">final</span> color = <span class="kw">await</span> <span class="fn">showModalBottomSheet</span>&lt;<span class="tp">Color</span>&gt;(
+  context: context,
+  isScrollControlled: <span class="kw">true</span>,  <span class="cmt">// full-height capable</span>
+  shape: <span class="tp">RoundedRectangleBorder</span>(
+    borderRadius: <span class="tp">BorderRadius</span>.<span class="fn">vertical</span>(
+      top: <span class="tp">Radius</span>.<span class="fn">circular</span>(<span class="num">16</span>)),
+  ),
+  builder: (_) => <span class="tp">ColorPickerSheet</span>(),
+);
+
+<span class="cmt">// Sheet pops with value:</span>
+<span class="tp">Navigator</span>.<span class="fn">pop</span>(context, <span class="tp">Colors</span>.blue);
+
+<span class="cmt">// color is null if dismissed, Color if picked</span>
+<span class="kw">if</span> (color != <span class="kw">null</span>) setState(() => _color = color);`,
+    nextjs: `<span class="cmt">// No direct equivalent — use a modal library</span>
+<span class="cmt">// or manage with state + CSS transitions</span>
+
+<span class="kw">const</span> [sheetOpen, setSheetOpen] = <span class="fn">useState</span>(<span class="kw">false</span>);
+<span class="kw">const</span> [color, setColor]         = <span class="fn">useState</span>(<span class="kw">null</span>);
+
+<span class="kw">const</span> <span class="fn">openSheet</span> = () =&gt; <span class="fn">setSheetOpen</span>(<span class="kw">true</span>);
+
+<span class="cmt">// Sheet component calls onConfirm(color)</span>
+<span class="kw">const</span> <span class="fn">onConfirm</span> = (c) =&gt; {
+  <span class="fn">setColor</span>(c);
+  <span class="fn">setSheetOpen</span>(<span class="kw">false</span>);
+};`,
+  },
+  popWithResult: {
+    name: 'pop(result)',
+    color: '#e879f9',
+    desc: 'Pops the current screen AND returns a value to the screen that awaited the push. This is unique to Flutter — no web equivalent. The caller\'s await resolves with whatever value you pass to pop().',
+    flutter: `<span class="cmt">// The pushed screen pops with a value</span>
+
+<span class="cmt">// Inside ColorPickerScreen:</span>
+<span class="tp">ElevatedButton</span>(
+  onPressed: () =>
+    <span class="tp">Navigator</span>.<span class="fn">pop</span>(context, <span class="tp">Colors</span>.blue),
+  child: <span class="tp">Text</span>(<span class="str">'Pick Blue'</span>),
+)
+
+<span class="cmt">// The CALLER screen that pushed it:</span>
+<span class="kw">final</span> color = <span class="kw">await</span> context.<span class="fn">push</span>&lt;<span class="tp">Color</span>&gt;(
+  <span class="str">'/pick-color'</span>);
+
+<span class="cmt">// color is non-null if user picked something</span>
+<span class="kw">if</span> (color != <span class="kw">null</span>)
+  setState(() => _selectedColor = color);`,
+    nextjs: `<span class="cmt">// No native equivalent in web routing</span>
+<span class="cmt">// Must use shared state (Zustand, Context, URL)</span>
+
+<span class="cmt">// Option 1: URL state</span>
+router.<span class="fn">push</span>(<span class="str">'/pick-color?from=settings'</span>);
+<span class="cmt">// ColorPicker saves to store, router.back()</span>
+<span class="cmt">// Settings reads from store on render</span>
+
+<span class="cmt">// Option 2: React Context callback</span>
+<span class="kw">const</span> ctx = <span class="fn">useColorPickerContext</span>();
+ctx.<span class="fn">open</span>({ onConfirm: (color) =&gt; <span class="fn">setColor</span>(color) });`,
+  },
+  popUntil: {
+    name: 'Navigator.popUntil()',
+    color: '#f97316',
+    desc: 'Pops screens off the stack one by one until the predicate returns true. Use to jump back to a specific named route, clearing an entire multi-step flow in one go. Common use case: "Cancel" button on step 3 of a 5-step wizard.',
+    flutter: `<span class="cmt">// popUntil — pop multiple screens at once</span>
+
+<span class="cmt">// Pop all the way back to home route</span>
+<span class="tp">Navigator</span>.<span class="fn">popUntil</span>(
+  context,
+  <span class="tp">ModalRoute</span>.<span class="fn">withName</span>(<span class="str">'/'</span>),
+);
+
+<span class="cmt">// Pop until a custom condition</span>
+<span class="tp">Navigator</span>.<span class="fn">popUntil</span>(
+  context,
+  (route) =&gt; route.isFirst,
+);
+
+<span class="cmt">// go_router equivalent — just go() to root</span>
+context.<span class="fn">go</span>(<span class="str">'/'</span>);`,
+    nextjs: `<span class="cmt">// No direct equivalent — web history API</span>
+
+<span class="cmt">// go(-n) jumps n entries back</span>
+router.<span class="fn">go</span>(-<span class="num">3</span>); <span class="cmt">// ← go back 3 steps</span>
+
+<span class="cmt">// But you have to know the exact count.</span>
+<span class="cmt">// Flutter's popUntil is safer — route-name based.</span>
+
+<span class="cmt">// Best web alternative: use replace() to reset</span>
+router.<span class="fn">replace</span>(<span class="str">'/'</span>);`,
+  },
+  reset: { name: 'reset', color: '#94a3b8', desc: 'Simulator reset.', flutter: '', nextjs: '' },
+};
+
+/* ── State ── */
+let navStack = [{ ...SCREENS.home, key: 'home' }];
+let navModal = null;
+let navCurrentTab = 'single';
+let navActiveTab = 'home';
+let navTabStacks = {
+  home:    [{ ...SCREENS.home, key: 'home' }],
+  shop:    [{ ...SCREENS.products, key: 'products', title: 'ShopHome', route: '/shop' }],
+  profile: [{ key: 'profile', title: 'ProfileScreen', route: '/profile', color: '#a78bfa', render: () => `<div class="ns-section-label">Account</div><div class="ns-list-item"><span class="ns-item-icon">👤</span><div class="ns-item-text"><div class="ns-item-name">Sakhawat Hossain</div><div class="ns-item-sub">sakhawat@cefalo.com</div></div></div><div style="display:flex;gap:6px;margin-top:8px"><span class="ns-badge violet">Each tab has its own stack</span></div>` }],
+};
+let navCodeMode = 'flutter';
+let navCurrentOp = null;
+
+function navGetStack() {
+  return navCurrentTab === 'tabs' ? navTabStacks[navActiveTab] : navStack;
+}
+function navSetStack(s) {
+  if (navCurrentTab === 'tabs') navTabStacks[navActiveTab] = s;
+  else navStack = s;
+}
+
+function navOp(op) {
+  if (op === 'reset') { navReset(); return; }
+
+  const data = OP_DATA[op];
+  if (!data) return;
+  navCurrentOp = op;
+
+  // Flash button
+  document.querySelectorAll('.nav-op-btn').forEach(b => b.classList.remove('just-fired'));
+  const bmap = { push:'push',pop:'pop',go:'go',replace:'replace',modal:'modal',popWithResult:'result',popUntil:'until' };
+  document.getElementById('nav-btn-' + (bmap[op] || op))?.classList.add('just-fired');
+  setTimeout(() => document.querySelectorAll('.nav-op-btn').forEach(b => b.classList.remove('just-fired')), 600);
+
+  // Update info box
+  const infoContent = document.getElementById('nav-info-content');
+  infoContent.style.animation = 'none';
+  void infoContent.offsetWidth;
+  infoContent.style.animation = '';
+  document.getElementById('nav-info-name').textContent = data.name;
+  document.getElementById('nav-info-name').style.color = data.color;
+  document.getElementById('nav-info-desc').textContent = data.desc;
+  document.getElementById('nav-info-flutter-eq').textContent = '';
+
+  // Update code
+  navUpdateCode();
+
+  const stack = navGetStack();
+
+  if (op === 'push') {
+    const screens = ['products','checkout','login'];
+    const nextKey = screens[Math.min(stack.length - 1, screens.length - 1)];
+    const next = SCREENS[nextKey];
+    if (stack.length >= 4) {
+      navLogEntry('push', 'orange', '⚠ Stack depth 4+ — popUntil() recommended');
+      return;
+    }
+    const newStack = [...stack, { ...next, key: nextKey }];
+    navSetStack(newStack);
+    navAnimateScreens('push', newStack);
+    navLogEntry('push', 'green', `context.push('${next.route}') → stack depth ${newStack.length}`);
+
+  } else if (op === 'pop') {
+    if (navModal) {
+      navModal = null;
+      navRenderScreens();
+      navLogEntry('pop', 'coral', 'modal dismissed → stack unchanged');
+      return;
+    }
+    if (stack.length <= 1) {
+      navLogEntry('pop', 'amber', "canPop() = false — stack has only root, nothing to pop");
+      document.getElementById('nav-info-desc').textContent = 'Cannot pop — already at the root screen. context.canPop() returns false. The OS back button does nothing here.';
+      return;
+    }
+    const newStack = stack.slice(0, -1);
+    navSetStack(newStack);
+    navAnimateScreens('pop', newStack);
+    navLogEntry('pop', 'coral', `context.pop() → back to ${newStack[newStack.length-1].title}`);
+
+  } else if (op === 'go') {
+    const dest = stack[stack.length-1]?.key === 'success' ? 'home' : 'success';
+    const newStack = [{ ...SCREENS[dest], key: dest }];
+    navSetStack(newStack);
+    navModal = null;
+    navAnimateScreens('go', newStack);
+    navLogEntry('go', 'amber', `context.go('${SCREENS[dest].route}') → entire stack replaced`);
+
+  } else if (op === 'replace') {
+    if (stack.length === 0) return;
+    const newKey = stack[stack.length-1]?.key === 'home' ? 'login' : 'home';
+    const newStack = [...stack.slice(0,-1), { ...SCREENS[newKey], key: newKey }];
+    navSetStack(newStack);
+    navAnimateScreens('replace', newStack);
+    navLogEntry('replace', 'blue', `pushReplacement → ${SCREENS[newKey].title} (depth unchanged)`);
+
+  } else if (op === 'modal') {
+    navModal = { ...SCREENS.modal, key: 'modal' };
+    navRenderScreens();
+    navLogEntry('modal', 'violet', 'showModalBottomSheet() → awaiting pop(result)');
+
+  } else if (op === 'popWithResult') {
+    const wasModal = !!navModal;
+    if (navModal) {
+      navModal = null;
+      navRenderScreens();
+    } else if (stack.length > 1) {
+      const newStack = stack.slice(0,-1);
+      navSetStack(newStack);
+      navAnimateScreens('pop', newStack);
+    }
+    navLogEntry('result', 'pink', `Navigator.pop(context, Color.blue) → caller's await resolved with Color.blue`);
+    // show result badge on current top screen
+    setTimeout(() => {
+      const r = document.getElementById('nav-result-box');
+      if (r) { r.classList.add('visible'); }
+    }, 400);
+
+  } else if (op === 'popUntil') {
+    if (stack.length <= 1) { navLogEntry('until', 'amber', 'Already at root — nothing to pop'); return; }
+    const rootStack = [stack[0]];
+    navSetStack(rootStack);
+    navModal = null;
+    navAnimateScreens('go', rootStack);
+    navLogEntry('until', 'orange', `Navigator.popUntil(ModalRoute.withName('/')) → popped ${stack.length - 1} screen(s)`);
+  }
+
+  navUpdateStackIndicator();
+  navUpdateURL();
+}
+
+function navAnimateScreens(type, newStack) {
+  const area = document.getElementById('nav-screen-area');
+  const existing = area.querySelectorAll('.nav-screen:not(.nav-screen-enter)');
+
+  if (type === 'push') {
+    // new screen enters from right
+    navRenderScreens(true, type);
+  } else if (type === 'pop') {
+    // current top exits to right, reveal below
+    const top = area.querySelector('.nav-screen.active');
+    if (top) {
+      top.classList.remove('active');
+      top.classList.add('exiting');
+      setTimeout(() => top.remove(), 380);
+    }
+    navRenderScreens(false, type);
+    // make new top visible
+    setTimeout(() => {
+      const newTop = area.querySelector('.nav-screen.below');
+      if (newTop) {
+        newTop.classList.remove('below');
+        newTop.classList.add('active');
+      }
+      navRenderScreens(false);
+    }, 50);
+  } else if (type === 'go' || type === 'replace') {
+    // fade out all, fade new in
+    existing.forEach(s => { s.style.transition = 'opacity 0.25s'; s.style.opacity = '0'; });
+    setTimeout(() => navRenderScreens(true, type), 250);
+  }
+}
+
+function navRenderScreens(animate, animType) {
+  const area = document.getElementById('nav-screen-area');
+  const stack = navGetStack();
+
+  area.innerHTML = '';
+
+  // Draw all screens in stack (bottom to top)
+  stack.forEach((sc, i) => {
+    const isTop = i === stack.length - 1;
+    const isBelow = i === stack.length - 2;
+    const el = document.createElement('div');
+    el.className = 'nav-screen ' + (isTop ? (animate && (animType === 'push') ? 'entering' : 'active') : (isBelow ? 'below' : 'hidden'));
+    el.style.background = `linear-gradient(180deg, ${sc.color}12 0%, #0a0a12 60%)`;
+    el.innerHTML = `
+      <div class="nav-appbar" style="border-bottom:1px solid ${sc.color}25">
+        <button class="nav-back-btn" ${i === 0 ? 'disabled' : ''} onclick="navOp('pop')">←</button>
+        <span class="nav-appbar-title">${sc.title}</span>
+        <span class="nav-appbar-route">${sc.route}</span>
+      </div>
+      <div class="nav-screen-body">${sc.render ? sc.render() : ''}</div>
+      <div id="nav-result-box" class="ns-result-box">pop(result) returned Color.blue ✓</div>
+    `;
+    area.appendChild(el);
+
+    // Animate in after append
+    if (isTop && animate && animType === 'push') {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.classList.remove('entering');
+          el.classList.add('active');
+        });
+      });
+    }
+  });
+
+  // Modal overlay
+  if (navModal) {
+    const mel = document.createElement('div');
+    mel.className = 'nav-screen modal-enter';
+    mel.style.background = '#12121e';
+    mel.innerHTML = `
+      <div class="ns-modal-handle"></div>
+      <div class="nav-appbar" style="border-bottom:1px solid #a78bfa25">
+        <button class="nav-back-btn" onclick="navOp('pop')">✕</button>
+        <span class="nav-appbar-title">${navModal.title}</span>
+        <span class="nav-appbar-route">${navModal.route}</span>
+      </div>
+      <div class="nav-screen-body">${navModal.render ? navModal.render() : ''}</div>
+    `;
+    area.appendChild(mel);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      mel.classList.remove('modal-enter');
+      mel.classList.add('modal-active');
+    }));
+  }
+}
+
+function navUpdateStackIndicator() {
+  const stack = navGetStack();
+  const dotsEl = document.getElementById('nav-si-dots');
+  const depthEl = document.getElementById('nav-si-depth');
+  dotsEl.innerHTML = stack.map((_, i) => {
+    const isTop = i === stack.length - 1;
+    const isBelow = i === stack.length - 2;
+    return `<div class="nav-si-dot ${isTop ? 'active' : isBelow ? 'below' : ''}"></div>`;
+  }).join('');
+  depthEl.textContent = `depth: ${stack.length}`;
+}
+
+function navUpdateURL() {
+  const stack = navGetStack();
+  const top = stack[stack.length - 1];
+  const urlEl = document.getElementById('nav-url-val');
+  if (urlEl) {
+    urlEl.textContent = top?.route || '/';
+    urlEl.style.animation = 'none';
+    void urlEl.offsetWidth;
+    urlEl.style.animation = 'logIn 0.2s ease';
+  }
+}
+
+function navLogEntry(op, color, msg) {
+  const log = document.getElementById('nav-log');
+  const colors = { green:'var(--accent-green)', coral:'var(--accent-coral)', amber:'var(--accent-amber)', blue:'var(--accent-flutter)', violet:'var(--accent-violet)', pink:'#e879f9', orange:'#f97316' };
+  const now = new Date();
+  const ts = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+  const row = document.createElement('div');
+  row.className = 'nav-log-row';
+  row.innerHTML = `<span class="nav-log-ts">${ts}</span><span class="nav-log-op" style="color:${colors[color]||'var(--text-muted)'}">${op}()</span><span class="nav-log-msg">${msg}</span>`;
+  log.prepend(row);
+}
+
+function navClearLog() { document.getElementById('nav-log').innerHTML = ''; }
+
+function navUpdateCode() {
+  const data = navCurrentOp ? OP_DATA[navCurrentOp] : null;
+  if (!data) return;
+  const code = navCodeMode === 'flutter' ? data.flutter : data.nextjs;
+  document.getElementById('nav-code-display').innerHTML = code || '<span class="cmt">// No code for this operation</span>';
+}
+
+function navCodeTab(mode) {
+  navCodeMode = mode;
+  document.getElementById('nct-flutter').classList.toggle('active', mode === 'flutter');
+  document.getElementById('nct-nextjs').classList.toggle('active', mode === 'nextjs');
+  navUpdateCode();
+}
+
+function navPhoneMode(mode) {
+  navCurrentTab = mode;
+  document.getElementById('ntb-single').classList.toggle('active', mode === 'single');
+  document.getElementById('ntb-tabs').classList.toggle('active', mode === 'tabs');
+  document.getElementById('nav-bottombar').style.display = mode === 'tabs' ? 'flex' : 'none';
+  navModal = null;
+  navRenderScreens();
+  navUpdateStackIndicator();
+  navUpdateURL();
+  if (mode === 'tabs') {
+    navLogEntry('tabs', 'violet', 'Switched to nested tabs mode — each tab has its own independent stack');
+  }
+}
+
+function navSwitchTab(tab) {
+  navActiveTab = tab;
+  ['home','shop','profile'].forEach(t => {
+    document.getElementById('ntab-'+t)?.classList.toggle('active', t === tab);
+  });
+  navModal = null;
+  navRenderScreens();
+  navUpdateStackIndicator();
+  navUpdateURL();
+  navLogEntry('tab', 'blue', `Switched to '${tab}' tab — stack preserved from last visit`);
+}
+
+function navReset() {
+  navStack = [{ ...SCREENS.home, key: 'home' }];
+  navModal = null;
+  navTabStacks = {
+    home:    [{ ...SCREENS.home, key: 'home' }],
+    shop:    [{ ...SCREENS.products, key: 'products', title: 'ShopHome', route: '/shop' }],
+    profile: [{ key: 'profile', title: 'ProfileScreen', route: '/profile', color: '#a78bfa', render: navTabStacks?.profile?.[0]?.render }],
+  };
+  navActiveTab = 'home';
+  navCurrentOp = null;
+  navRenderScreens();
+  navUpdateStackIndicator();
+  navUpdateURL();
+  document.getElementById('nav-info-name').textContent = '—';
+  document.getElementById('nav-info-name').style.color = 'var(--accent-green)';
+  document.getElementById('nav-info-desc').textContent = 'Simulator reset. Press an operation to begin.';
+  document.getElementById('nav-code-display').innerHTML = '<span class="cmt">// Press an operation to see the code</span>';
+  navLogEntry('reset', 'green', 'Simulator reset to initial state');
+}
+
+// init
+navReset();
+</script>
 
   </div>
   <div class="section-nav">
@@ -2503,34 +3612,97 @@ router.<span class="fn">push</span>(<span class="str">'/pick-color?from=settings
   <div class="section-hero" style="--hero-glow:#a78bfa18">
     <div class="step-pill">Step 05 · Data &amp; State</div>
     <h2>State<br><strong>management</strong></h2>
-    <p class="subtitle">Flutter's ecosystem maps cleanly to React's. If you know useState + Zustand + React Query, you have a direct mental model for setState + Riverpod.</p>
+    <p class="subtitle">Flutter has three tiers: setState for local UI, Riverpod for shared global state, and BLoC for complex event-driven business logic. Each maps to something you already know from React.</p>
   </div>
   <div class="section-body">
+
+    <!-- Tier overview cards -->
     <div class="state-grid">
-      <div class="state-card">
-        <div class="sc-label">Local state</div>
+      <div class="state-card" style="cursor:pointer" onclick="smTab('setstate')">
+        <div class="sc-label">Tier 1 · Local</div>
         <h4>setState</h4>
         <p>Built-in to StatefulWidget. For UI-only state: toggles, form inputs, tab selection.</p>
         <span class="eq">≈ useState</span>
       </div>
-      <div class="state-card">
-        <div class="sc-label">Shared / global</div>
+      <div class="state-card" style="cursor:pointer" onclick="smTab('riverpod')">
+        <div class="sc-label">Tier 2 · Shared</div>
         <h4>Riverpod</h4>
         <p>Type-safe providers, auto-dispose, works outside BuildContext. The modern recommended solution.</p>
         <span class="eq">≈ Zustand / Jotai</span>
       </div>
-      <div class="state-card">
-        <div class="sc-label">Reactive streams</div>
-        <h4>BLoC / Cubit</h4>
-        <p>Event-driven stream-based state. Great for complex business logic and large teams.</p>
+      <div class="state-card" style="cursor:pointer; border-color: #a78bfa44;" onclick="smTab('bloc')">
+        <div class="sc-label">Tier 3 · Complex ✦ Interactive</div>
+        <h4 style="color:var(--accent-violet)">BLoC / Cubit</h4>
+        <p>Event-driven stream-based state. Strict separation of UI and logic. Great for large teams.</p>
         <span class="eq">≈ Redux + RTK</span>
       </div>
     </div>
 
-    <div class="compare-grid">
-      <div class="compare-col">
-        <div class="compare-header next-h"><span class="lang-dot next-d"></span>Zustand store</div>
-        <div class="code-block"><span class="kw">const</span> useUserStore = <span class="fn">create</span>((set) =&gt; ({
+    <!-- Tab switcher -->
+    <div style="display:flex;gap:2px;margin-bottom:0;border-bottom:1px solid var(--border)">
+      <button class="sm-tab active" id="sm-tab-setstate" onclick="smTab('setstate')">setState</button>
+      <button class="sm-tab" id="sm-tab-riverpod" onclick="smTab('riverpod')">Riverpod</button>
+      <button class="sm-tab" id="sm-tab-bloc" onclick="smTab('bloc')" style="color:var(--accent-violet)">BLoC · Interactive</button>
+    </div>
+
+    <!-- setState pane -->
+    <div class="sm-pane active" id="sm-pane-setstate">
+      <div class="compare-grid" style="border-radius:0 12px 12px 12px">
+        <div class="compare-col">
+          <div class="compare-header next-h"><span class="lang-dot next-d"></span>React useState</div>
+          <div class="code-block"><span class="kw">const</span> <span class="fn">Counter</span> = () => {
+  <span class="kw">const</span> [count, setCount] = <span class="fn">useState</span>(<span class="num">0</span>);
+  <span class="kw">const</span> [dark, setDark] = <span class="fn">useState</span>(<span class="kw">false</span>);
+
+  <span class="kw">return</span> (
+    &lt;<span class="tp">div</span>&gt;
+      &lt;<span class="tp">p</span>&gt;Count: {count}&lt;/<span class="tp">p</span>&gt;
+      &lt;<span class="tp">button</span> onClick={() =&gt; <span class="fn">setCount</span>(c =&gt; c+<span class="num">1</span>)}&gt;
+        Increment
+      &lt;/<span class="tp">button</span>&gt;
+      &lt;<span class="tp">button</span> onClick={() =&gt; <span class="fn">setDark</span>(d =&gt; !d)}&gt;
+        Toggle theme
+      &lt;/<span class="tp">button</span>&gt;
+    &lt;/<span class="tp">div</span>&gt;
+  );
+};</div>
+        </div>
+        <div class="compare-col">
+          <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>Flutter setState</div>
+          <div class="code-block"><span class="kw">class</span> _<span class="tp">CounterState</span> <span class="kw">extends</span> <span class="tp">State</span>&lt;<span class="tp">Counter</span>&gt; {
+  <span class="kw">int</span> count = <span class="num">0</span>;
+  <span class="kw">bool</span> dark = <span class="kw">false</span>;
+
+  <span class="kw">@override</span>
+  <span class="tp">Widget</span> <span class="fn">build</span>(<span class="tp">BuildContext</span> _) =&gt;
+    <span class="tp">Column</span>(children: [
+      <span class="tp">Text</span>(<span class="str">'Count: $count'</span>),
+      <span class="tp">ElevatedButton</span>(
+        onPressed: () =&gt;
+          <span class="fn">setState</span>(() =&gt; count++),
+        child: <span class="tp">Text</span>(<span class="str">'Increment'</span>),
+      ),
+      <span class="tp">Switch</span>(
+        value: dark,
+        onChanged: (v) =&gt;
+          <span class="fn">setState</span>(() =&gt; dark = v),
+      ),
+    ]);
+}</div>
+        </div>
+      </div>
+      <div class="callout" style="--callout-color:var(--accent-amber);margin-top:16px">
+        <span class="callout-icon">⚠️</span>
+        <div><strong>When to stop using setState:</strong> The moment you need the same state in two sibling widgets, you've outgrown setState. Lift state up to a Riverpod provider instead — same rule as lifting state in React.</div>
+      </div>
+    </div>
+
+    <!-- Riverpod pane -->
+    <div class="sm-pane" id="sm-pane-riverpod">
+      <div class="compare-grid" style="border-radius:0 12px 12px 12px">
+        <div class="compare-col">
+          <div class="compare-header next-h"><span class="lang-dot next-d"></span>Zustand store</div>
+          <div class="code-block"><span class="kw">const</span> useUserStore = <span class="fn">create</span>((set) =&gt; ({
   user: <span class="kw">null</span>,
   isLoading: <span class="kw">false</span>,
   <span class="fn">fetch</span>: <span class="kw">async</span> (id) =&gt; {
@@ -2540,12 +3712,15 @@ router.<span class="fn">push</span>(<span class="str">'/pick-color?from=settings
   },
 }));
 
-<span class="cmt">// In component — subscribe</span>
-<span class="kw">const</span> { user, fetch } = <span class="fn">useUserStore</span>();</div>
-      </div>
-      <div class="compare-col">
-        <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>Riverpod AsyncNotifier</div>
-        <div class="code-block"><span class="kw">final</span> userProvider =
+<span class="cmt">// In component</span>
+<span class="kw">const</span> { user, isLoading, fetch } = <span class="fn">useUserStore</span>();
+<span class="cmt">// ref.watch  ≈ subscribe to store</span>
+<span class="cmt">// ref.read   ≈ one-time read outside component</span>
+<span class="cmt">// ref.listen ≈ useEffect on store change</span></div>
+        </div>
+        <div class="compare-col">
+          <div class="compare-header flutter-h"><span class="lang-dot flutter-d"></span>Riverpod AsyncNotifier</div>
+          <div class="code-block"><span class="kw">final</span> userProvider =
   <span class="fn">AsyncNotifierProvider</span>&lt;<span class="tp">UserNotifier</span>, <span class="tp">User</span>&gt;(
     <span class="tp">UserNotifier</span>.new);
 
@@ -2554,20 +3729,1039 @@ router.<span class="fn">push</span>(<span class="str">'/pick-color?from=settings
   <span class="tp">Future</span>&lt;<span class="tp">User</span>&gt; <span class="fn">build</span>() =&gt; <span class="fn">fetchUser</span>();
 }
 
-<span class="cmt">// In widget — like useSelector</span>
+<span class="cmt">// In widget</span>
 <span class="kw">final</span> userAsync = ref.<span class="fn">watch</span>(userProvider);
 userAsync.<span class="fn">when</span>(
   data:    (u) =&gt; <span class="tp">Text</span>(u.name),
   loading: () =&gt; <span class="tp">CircularProgressIndicator</span>(),
   error:   (e, _) =&gt; <span class="tp">Text</span>(<span class="str">'Error: $e'</span>),
 );</div>
+        </div>
+      </div>
+      <div class="callout" style="--callout-color:var(--accent-flutter);margin-top:16px">
+        <span class="callout-icon">💡</span>
+        <div><strong>ref.watch vs ref.read vs ref.listen:</strong> <code>ref.watch()</code> = subscribe and rebuild. <code>ref.read()</code> = one-time read without subscribing (use inside callbacks). <code>ref.listen()</code> = run a side-effect when state changes, like <code>useEffect([dep])</code> in React.</div>
       </div>
     </div>
-  </div>
+
+    <!-- BLoC INTERACTIVE pane -->
+    <div class="sm-pane" id="sm-pane-bloc">
+
+      <style>
+      /* ── SM tabs ── */
+      .sm-tab {
+        padding: 10px 20px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-bottom: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        border-radius: 8px 8px 0 0;
+        transition: all 0.15s;
+        letter-spacing: 0.04em;
+      }
+      .sm-tab:hover { color: var(--text); background: var(--surface); }
+      .sm-tab.active { background: var(--surface); color: var(--text); border-color: var(--border-active); }
+      .sm-pane { display: none; }
+      .sm-pane.active { display: block; }
+
+      /* ── BLOC PLAYGROUND ── */
+      .bloc-playground {
+        border: 1px solid #a78bfa30;
+        border-radius: 0 12px 12px 12px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+
+      /* Top anatomy banner */
+      .bloc-anatomy {
+        display: grid;
+        grid-template-columns: 1fr 40px 1fr 40px 1fr;
+        gap: 0;
+        background: var(--surface2);
+        border-bottom: 1px solid var(--border);
+        padding: 0;
+      }
+      .bloc-layer {
+        padding: 14px 18px;
+        text-align: center;
+      }
+      .bloc-layer-name {
+        font-family: var(--display);
+        font-size: 16px;
+        font-weight: 700;
+        font-style: italic;
+        margin-bottom: 2px;
+      }
+      .bloc-layer-sub {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--text-dim);
+        letter-spacing: 0.08em;
+      }
+      .bloc-arrow-col {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: var(--text-dim);
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+      }
+
+      /* Main 3-column layout */
+      .bloc-main {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0;
+        min-height: 540px;
+      }
+      .bloc-col {
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+      }
+      .bloc-col:last-child { border-right: none; }
+      .bloc-col-header {
+        padding: 12px 16px 10px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .bloc-col-title {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+
+      /* Event buttons */
+      .bloc-events-list {
+        padding: 14px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        flex: 1;
+      }
+      .bloc-event-btn {
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text-muted);
+        font-family: var(--mono);
+        font-size: 11.5px;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.15s;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .bloc-event-btn:hover {
+        border-color: var(--accent-violet);
+        color: var(--text);
+        background: #a78bfa0d;
+      }
+      .bloc-event-btn.fired {
+        border-color: var(--accent-violet);
+        background: #a78bfa18;
+        color: var(--accent-violet);
+        animation: eventFire 0.4s ease;
+      }
+      @keyframes eventFire {
+        0%   { transform: scale(1); }
+        40%  { transform: scale(1.03); }
+        100% { transform: scale(1); }
+      }
+      .beb-name { font-weight: 500; font-size: 12px; }
+      .beb-payload { font-size: 10px; color: var(--text-dim); }
+      .beb-payload.fired-p { color: #a78bfa80; }
+
+      /* BLoC processing column */
+      .bloc-processing {
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex: 1;
+      }
+      .bloc-handler {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.3s;
+      }
+      .bloc-handler.active-handler {
+        border-color: var(--accent-violet);
+        box-shadow: 0 0 12px #a78bfa20;
+      }
+      .bh-name {
+        padding: 7px 12px;
+        background: var(--surface2);
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .bh-name.active-bh { color: var(--accent-violet); background: #a78bfa0d; }
+      .bh-dot {
+        width: 5px; height: 5px; border-radius: 50%;
+        background: var(--text-dim); flex-shrink: 0;
+        transition: all 0.2s;
+      }
+      .active-bh .bh-dot { background: var(--accent-violet); box-shadow: 0 0 6px var(--accent-violet); }
+      .bh-body {
+        padding: 8px 12px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--text-dim);
+        line-height: 1.7;
+      }
+      .bh-body .hl { color: var(--accent-violet); }
+      .bh-body .act { color: var(--accent-green); }
+
+      /* Progress bar inside handler */
+      .bh-progress {
+        height: 2px;
+        background: var(--border);
+        margin: 4px 0 2px;
+        border-radius: 1px;
+        overflow: hidden;
+      }
+      .bh-progress-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--accent-violet);
+        border-radius: 1px;
+        transition: width 0.6s linear;
+      }
+
+      /* State output column */
+      .bloc-state-display {
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex: 1;
+      }
+      .bs-current {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.3s;
+      }
+      .bs-current.state-changed {
+        border-color: var(--accent-green);
+        box-shadow: 0 0 14px #4ade8020;
+        animation: stateFlash 0.5s ease;
+      }
+      @keyframes stateFlash {
+        0%   { box-shadow: 0 0 0px #4ade8000; }
+        50%  { box-shadow: 0 0 20px #4ade8040; }
+        100% { box-shadow: 0 0 14px #4ade8020; }
+      }
+      .bs-label {
+        padding: 7px 12px;
+        background: var(--surface2);
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--text-dim);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--border);
+      }
+      .bs-body {
+        padding: 12px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        line-height: 1.8;
+      }
+      .bs-field { display: flex; justify-content: space-between; gap: 8px; }
+      .bs-key { color: var(--text-dim); }
+      .bs-val { color: var(--accent-green); font-weight: 500; transition: color 0.3s; }
+      .bs-val.changed { color: var(--accent-amber); animation: valChange 0.4s ease; }
+      @keyframes valChange {
+        0%   { color: var(--accent-flutter); }
+        60%  { color: var(--accent-amber); }
+        100% { color: var(--accent-green); }
+      }
+
+      /* Widget rebuild flash */
+      .bs-widget {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        transition: border-color 0.3s;
+      }
+      .bs-widget.rebuilding {
+        border-color: var(--accent-flutter);
+        animation: rebuildFlash 0.5s ease;
+      }
+      @keyframes rebuildFlash {
+        0%  { background: transparent; }
+        30% { background: #67d9fc0a; }
+        100%{ background: transparent; }
+      }
+      .bw-header {
+        padding: 7px 12px;
+        background: var(--surface2);
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--text-dim);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .bw-rebuild-tag {
+        font-size: 9px;
+        color: var(--accent-flutter);
+        opacity: 0;
+        transition: opacity 0.2s;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+      }
+      .bs-widget.rebuilding .bw-rebuild-tag { opacity: 1; }
+      .bw-body {
+        padding: 12px;
+        font-family: var(--sans);
+        font-size: 13px;
+      }
+
+      /* mock UI inside widget preview */
+      .mock-cart {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .mock-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: var(--surface2);
+        font-size: 12px;
+        transition: all 0.3s;
+      }
+      .mock-item.new-item {
+        animation: slideIn 0.35s ease;
+        border: 1px solid #4ade8030;
+      }
+      @keyframes slideIn {
+        from { opacity:0; transform: translateY(-6px); }
+        to   { opacity:1; transform: none; }
+      }
+      .mock-item-name { color: var(--text-muted); }
+      .mock-item-price { color: var(--accent-green); font-family: var(--mono); font-size: 11px; }
+      .mock-total {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 8px 2px;
+        font-size: 12px;
+        font-weight: 600;
+        border-top: 1px solid var(--border);
+        margin-top: 2px;
+      }
+      .mock-total-val { color: var(--accent-flutter); font-family: var(--mono); font-size: 12px; }
+
+      .mock-empty {
+        text-align: center;
+        padding: 16px;
+        color: var(--text-dim);
+        font-size: 12px;
+        font-family: var(--mono);
+      }
+
+      .mock-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-family: var(--mono);
+        transition: all 0.3s;
+      }
+      .mock-status.status-idle    { color: var(--text-dim); background: var(--surface2); }
+      .mock-status.status-loading { color: var(--accent-amber); background: #fbbf2410; }
+      .mock-status.status-success { color: var(--accent-green); background: #4ade8010; }
+      .mock-status.status-error   { color: var(--accent-coral); background: #fb718510; }
+      .status-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: currentColor;
+        flex-shrink: 0;
+        transition: all 0.3s;
+      }
+      .status-loading .status-dot { animation: statusPulse 0.8s infinite; }
+      @keyframes statusPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+      /* stream pipe visual */
+      .bloc-stream-pipe {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        padding: 10px 16px;
+        border-top: 1px solid var(--border);
+        background: var(--surface2);
+        overflow-x: auto;
+        scrollbar-width: none;
+        min-height: 48px;
+      }
+      .pipe-event {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        flex-shrink: 0;
+      }
+      .pipe-bubble {
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 500;
+        border: 1px solid;
+        white-space: nowrap;
+        animation: bubbleIn 0.3s ease;
+      }
+      @keyframes bubbleIn {
+        from { opacity:0; transform: scale(0.7); }
+        to   { opacity:1; transform: scale(1); }
+      }
+      .pipe-arrow {
+        font-size: 12px;
+        color: var(--text-dim);
+        padding: 0 4px;
+        flex-shrink: 0;
+      }
+      .pipe-label {
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--text-dim);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding-right: 8px;
+        flex-shrink: 0;
+      }
+
+      /* code tab below */
+      .bloc-code-tabs {
+        display: flex;
+        border-top: 1px solid var(--border);
+      }
+      .bloc-code-tab {
+        flex: 1;
+        padding: 9px 0;
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--text-dim);
+        cursor: pointer;
+        border-right: 1px solid var(--border);
+        transition: all 0.15s;
+        letter-spacing: 0.05em;
+      }
+      .bloc-code-tab:last-child { border-right: none; }
+      .bloc-code-tab:hover { color: var(--text-muted); background: var(--surface2); }
+      .bloc-code-tab.active { color: var(--accent-violet); background: #a78bfa08; }
+      .bloc-code-pane {
+        display: none;
+        border-top: 1px solid var(--border);
+      }
+      .bloc-code-pane.active { display: block; }
+
+      @media (max-width: 860px) {
+        .bloc-main { grid-template-columns: 1fr; }
+        .bloc-anatomy { grid-template-columns: 1fr 1fr 1fr; }
+        .bloc-arrow-col { display: none; }
+      }
+      </style>
+
+      <div class="bloc-playground">
+
+        <!-- anatomy header -->
+        <div class="bloc-anatomy">
+          <div class="bloc-layer">
+            <div class="bloc-layer-name" style="color:#a78bfa">Event</div>
+            <div class="bloc-layer-sub">UI DISPATCHES</div>
+          </div>
+          <div class="bloc-arrow-col">→</div>
+          <div class="bloc-layer">
+            <div class="bloc-layer-name" style="color:#fbbf24">BLoC</div>
+            <div class="bloc-layer-sub">PROCESSES LOGIC</div>
+          </div>
+          <div class="bloc-arrow-col">→</div>
+          <div class="bloc-layer">
+            <div class="bloc-layer-name" style="color:#4ade80">State</div>
+            <div class="bloc-layer-sub">WIDGET REBUILDS</div>
+          </div>
+        </div>
+
+        <!-- main 3-column -->
+        <div class="bloc-main">
+
+          <!-- col 1: events -->
+          <div class="bloc-col">
+            <div class="bloc-col-header">
+              <span class="bloc-col-title">Fire an event</span>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim)">bloc.add(Event)</span>
+            </div>
+            <div class="bloc-events-list">
+              <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:0.12em;text-transform:uppercase;padding:2px 0 4px">Cart events</div>
+              <button class="bloc-event-btn" id="ev-add" onclick="blocFire('addItem')">
+                <span class="beb-name">AddItemEvent</span>
+                <span class="beb-payload" id="ev-add-p">payload: { id: 'p1', name: 'AirPods', price: 129 }</span>
+              </button>
+              <button class="bloc-event-btn" id="ev-add2" onclick="blocFire('addItem2')">
+                <span class="beb-name">AddItemEvent</span>
+                <span class="beb-payload" id="ev-add2-p">payload: { id: 'p2', name: 'Cable', price: 19 }</span>
+              </button>
+              <button class="bloc-event-btn" id="ev-remove" onclick="blocFire('removeItem')">
+                <span class="beb-name">RemoveItemEvent</span>
+                <span class="beb-payload" id="ev-remove-p">payload: { id: 'p1' }</span>
+              </button>
+              <button class="bloc-event-btn" id="ev-clear" onclick="blocFire('clearCart')">
+                <span class="beb-name">ClearCartEvent</span>
+                <span class="beb-payload">payload: none</span>
+              </button>
+
+              <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:0.12em;text-transform:uppercase;padding:10px 0 4px">Checkout events</div>
+              <button class="bloc-event-btn" id="ev-checkout" onclick="blocFire('checkout')">
+                <span class="beb-name">CheckoutEvent</span>
+                <span class="beb-payload">payload: { userId: 'u1' }</span>
+              </button>
+              <button class="bloc-event-btn" id="ev-reset" onclick="blocFire('resetCheckout')">
+                <span class="beb-name">ResetEvent</span>
+                <span class="beb-payload">payload: none</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- col 2: bloc processing -->
+          <div class="bloc-col">
+            <div class="bloc-col-header">
+              <span class="bloc-col-title">BLoC logic</span>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim)">on&lt;Event&gt;(handler)</span>
+            </div>
+            <div class="bloc-processing">
+              <div class="bloc-handler" id="bh-add">
+                <div class="bh-name" id="bh-add-n"><div class="bh-dot"></div>on&lt;AddItemEvent&gt;</div>
+                <div class="bh-body">
+                  <span id="bh-add-body" style="color:var(--text-dim)">emit(state.copyWith(<br>&nbsp;&nbsp;items: [...state.items, event.item],<br>&nbsp;&nbsp;total: state.total + event.item.price,<br>))</span>
+                </div>
+                <div class="bh-progress"><div class="bh-progress-fill" id="bh-add-prog"></div></div>
+              </div>
+              <div class="bloc-handler" id="bh-remove">
+                <div class="bh-name" id="bh-remove-n"><div class="bh-dot"></div>on&lt;RemoveItemEvent&gt;</div>
+                <div class="bh-body">
+                  <span id="bh-remove-body" style="color:var(--text-dim)">emit(state.copyWith(<br>&nbsp;&nbsp;items: items.where(i ≠ id),<br>&nbsp;&nbsp;total: total - item.price,<br>))</span>
+                </div>
+                <div class="bh-progress"><div class="bh-progress-fill" id="bh-remove-prog"></div></div>
+              </div>
+              <div class="bloc-handler" id="bh-clear">
+                <div class="bh-name" id="bh-clear-n"><div class="bh-dot"></div>on&lt;ClearCartEvent&gt;</div>
+                <div class="bh-body">
+                  <span id="bh-clear-body" style="color:var(--text-dim)">emit(CartState.initial())</span>
+                </div>
+                <div class="bh-progress"><div class="bh-progress-fill" id="bh-clear-prog"></div></div>
+              </div>
+              <div class="bloc-handler" id="bh-checkout">
+                <div class="bh-name" id="bh-checkout-n"><div class="bh-dot"></div>on&lt;CheckoutEvent&gt;</div>
+                <div class="bh-body">
+                  <span id="bh-checkout-body" style="color:var(--text-dim)">emit(loading) →<br>await placeOrder() →<br>emit(success | error)</span>
+                </div>
+                <div class="bh-progress"><div class="bh-progress-fill" id="bh-checkout-prog"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- col 3: state output -->
+          <div class="bloc-col">
+            <div class="bloc-col-header">
+              <span class="bloc-col-title">Emitted state</span>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim)">BlocBuilder rebuilds</span>
+            </div>
+            <div class="bloc-state-display">
+              <div class="bs-current" id="bs-state-box">
+                <div class="bs-label">CartState</div>
+                <div class="bs-body">
+                  <div class="bs-field"><span class="bs-key">items.length</span><span class="bs-val" id="bs-count">0</span></div>
+                  <div class="bs-field"><span class="bs-key">total</span><span class="bs-val" id="bs-total">$0</span></div>
+                  <div class="bs-field"><span class="bs-key">status</span><span class="bs-val" id="bs-status-val">idle</span></div>
+                  <div class="bs-field"><span class="bs-key">error</span><span class="bs-val" id="bs-error">null</span></div>
+                </div>
+              </div>
+
+              <!-- mock status -->
+              <div class="mock-status status-idle" id="mock-status">
+                <div class="status-dot"></div>
+                <span id="mock-status-text">Idle</span>
+              </div>
+
+              <!-- widget rebuild preview -->
+              <div class="bs-widget" id="bs-widget">
+                <div class="bw-header">
+                  <span>BlocBuilder&lt;CartBloc, CartState&gt;</span>
+                  <span class="bw-rebuild-tag">REBUILDING…</span>
+                </div>
+                <div class="bw-body">
+                  <div class="mock-cart" id="mock-cart">
+                    <div class="mock-empty">Cart is empty</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div><!-- end bloc-main -->
+
+        <!-- stream pipe timeline -->
+        <div class="bloc-stream-pipe" id="bloc-stream">
+          <span class="pipe-label">Stream&lt;CartState&gt;</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">fire an event to see the stream →</span>
+        </div>
+
+        <!-- code tabs -->
+        <div class="bloc-code-tabs">
+          <div class="bloc-code-tab active" onclick="blocCodeTab('event')">Event classes</div>
+          <div class="bloc-code-tab" onclick="blocCodeTab('state')">State class</div>
+          <div class="bloc-code-tab" onclick="blocCodeTab('bloc')">BLoC class</div>
+          <div class="bloc-code-tab" onclick="blocCodeTab('widget')">Widget (BlocBuilder)</div>
+          <div class="bloc-code-tab" onclick="blocCodeTab('redux')">Redux comparison</div>
+        </div>
+
+        <div class="bloc-code-pane active" id="bcp-event">
+          <div class="code-block" style="font-size:12px"><span class="cmt">// Events are plain Dart classes — like Redux actions</span>
+<span class="cmt">// Each event is a "thing the user did"</span>
+
+<span class="kw">sealed class</span> <span class="tp">CartEvent</span> {}
+
+<span class="cmt">// No payload needed — just a signal</span>
+<span class="kw">final class</span> <span class="tp">ClearCartEvent</span> <span class="kw">extends</span> <span class="tp">CartEvent</span> {}
+<span class="kw">final class</span> <span class="tp">ResetEvent</span>     <span class="kw">extends</span> <span class="tp">CartEvent</span> {}
+
+<span class="cmt">// With payload — like Redux action with payload field</span>
+<span class="kw">final class</span> <span class="tp">AddItemEvent</span> <span class="kw">extends</span> <span class="tp">CartEvent</span> {
+  <span class="kw">final</span> <span class="tp">CartItem</span> item;
+  <span class="kw">const</span> <span class="fn">AddItemEvent</span>({<span class="kw">required this</span>.item});
+}
+
+<span class="kw">final class</span> <span class="tp">RemoveItemEvent</span> <span class="kw">extends</span> <span class="tp">CartEvent</span> {
+  <span class="kw">final</span> <span class="tp">String</span> itemId;
+  <span class="kw">const</span> <span class="fn">RemoveItemEvent</span>({<span class="kw">required this</span>.itemId});
+}
+
+<span class="cmt">// Complex event with async flow</span>
+<span class="kw">final class</span> <span class="tp">CheckoutEvent</span> <span class="kw">extends</span> <span class="tp">CartEvent</span> {
+  <span class="kw">final</span> <span class="tp">String</span> userId;
+  <span class="kw">const</span> <span class="fn">CheckoutEvent</span>({<span class="kw">required this</span>.userId});
+}
+
+<span class="cmt">// Fire in the UI like this:</span>
+context.<span class="fn">read</span>&lt;<span class="tp">CartBloc</span>&gt;().<span class="fn">add</span>(<span class="tp">AddItemEvent</span>(item: item));</div>
+        </div>
+        <div class="bloc-code-pane" id="bcp-state">
+          <div class="code-block" style="font-size:12px"><span class="cmt">// State is immutable — like Redux state shape</span>
+<span class="cmt">// copyWith() is Flutter's spread: { ...state, key: value }</span>
+
+<span class="kw">enum</span> <span class="tp">CartStatus</span> { idle, loading, success, error }
+
+<span class="kw">class</span> <span class="tp">CartState</span> {
+  <span class="kw">final</span> <span class="tp">List</span>&lt;<span class="tp">CartItem</span>&gt; items;
+  <span class="kw">final</span> <span class="tp">double</span>          total;
+  <span class="kw">final</span> <span class="tp">CartStatus</span>      status;
+  <span class="kw">final</span> <span class="tp">String</span>?          error;
+
+  <span class="kw">const</span> <span class="fn">CartState</span>({
+    <span class="kw">this</span>.items  = <span class="kw">const</span> [],
+    <span class="kw">this</span>.total  = <span class="num">0</span>,
+    <span class="kw">this</span>.status = <span class="tp">CartStatus</span>.idle,
+    <span class="kw">this</span>.error,
+  });
+
+  <span class="cmt">// ← This is { ...state, items: [...] } in JS</span>
+  <span class="tp">CartState</span> <span class="fn">copyWith</span>({
+    <span class="tp">List</span>&lt;<span class="tp">CartItem</span>&gt;? items,
+    <span class="tp">double</span>?          total,
+    <span class="tp">CartStatus</span>?      status,
+    <span class="tp">String</span>?          error,
+  }) =&gt; <span class="tp">CartState</span>(
+    items:  items  ?? <span class="kw">this</span>.items,
+    total:  total  ?? <span class="kw">this</span>.total,
+    status: status ?? <span class="kw">this</span>.status,
+    error:  error  ?? <span class="kw">this</span>.error,
+  );
+
+  <span class="cmt">// Named constructor — Redux initialState</span>
+  <span class="kw">factory</span> <span class="tp">CartState</span>.<span class="fn">initial</span>() =&gt; <span class="kw">const</span> <span class="tp">CartState</span>();
+}</div>
+        </div>
+        <div class="bloc-code-pane" id="bcp-bloc">
+          <div class="code-block" style="font-size:12px"><span class="cmt">// BLoC class = Redux reducer + middleware combined</span>
+<span class="cmt">// on&lt;Event&gt;() registers a handler for that event type</span>
+
+<span class="kw">class</span> <span class="tp">CartBloc</span> <span class="kw">extends</span> <span class="tp">Bloc</span>&lt;<span class="tp">CartEvent</span>, <span class="tp">CartState</span>&gt; {
+  <span class="kw">final</span> <span class="tp">OrderRepository</span> _repo;
+
+  <span class="fn">CartBloc</span>({<span class="kw">required</span> <span class="tp">OrderRepository</span> repo})
+      : _repo = repo,
+        <span class="kw">super</span>(<span class="tp">CartState</span>.<span class="fn">initial</span>()) {
+
+    <span class="cmt">// Register handlers in constructor</span>
+    <span class="fn">on</span>&lt;<span class="tp">AddItemEvent</span>&gt;    (_onAdd);
+    <span class="fn">on</span>&lt;<span class="tp">RemoveItemEvent</span>&gt; (_onRemove);
+    <span class="fn">on</span>&lt;<span class="tp">ClearCartEvent</span>&gt;  (_onClear);
+    <span class="fn">on</span>&lt;<span class="tp">CheckoutEvent</span>&gt;   (_onCheckout);
+  }
+
+  <span class="kw">void</span> <span class="fn">_onAdd</span>(<span class="tp">AddItemEvent</span> event, <span class="tp">Emitter</span>&lt;<span class="tp">CartState</span>&gt; emit) {
+    emit(state.<span class="fn">copyWith</span>(
+      items: [...state.items, event.item],
+      total: state.total + event.item.price,
+    ));
+  }
+
+  <span class="kw">void</span> <span class="fn">_onRemove</span>(<span class="tp">RemoveItemEvent</span> e, <span class="tp">Emitter</span>&lt;<span class="tp">CartState</span>&gt; emit) {
+    <span class="kw">final</span> item = state.items.<span class="fn">firstWhere</span>((i) =&gt; i.id == e.itemId);
+    emit(state.<span class="fn">copyWith</span>(
+      items: state.items.<span class="fn">where</span>((i) =&gt; i.id != e.itemId).<span class="fn">toList</span>(),
+      total: state.total - item.price,
+    ));
+  }
+
+  <span class="kw">void</span> <span class="fn">_onClear</span>(<span class="tp">ClearCartEvent</span> _, <span class="tp">Emitter</span>&lt;<span class="tp">CartState</span>&gt; emit) {
+    emit(<span class="tp">CartState</span>.<span class="fn">initial</span>());
+  }
+
+  <span class="cmt">// Async handler — like Redux Thunk / RTK createAsyncThunk</span>
+  <span class="kw">Future</span>&lt;<span class="kw">void</span>&gt; <span class="fn">_onCheckout</span>(
+    <span class="tp">CheckoutEvent</span> event, <span class="tp">Emitter</span>&lt;<span class="tp">CartState</span>&gt; emit
+  ) <span class="kw">async</span> {
+    emit(state.<span class="fn">copyWith</span>(status: <span class="tp">CartStatus</span>.loading));
+    <span class="kw">try</span> {
+      <span class="kw">await</span> _repo.<span class="fn">placeOrder</span>(state.items, event.userId);
+      emit(state.<span class="fn">copyWith</span>(status: <span class="tp">CartStatus</span>.success));
+    } <span class="kw">catch</span> (e) {
+      emit(state.<span class="fn">copyWith</span>(
+        status: <span class="tp">CartStatus</span>.error, error: e.<span class="fn">toString</span>()));
+    }
+  }
+}</div>
+        </div>
+        <div class="bloc-code-pane" id="bcp-widget">
+          <div class="code-block" style="font-size:12px"><span class="cmt">// BlocProvider provides the BLoC to the subtree</span>
+<span class="cmt">// BlocBuilder listens and rebuilds on state change</span>
+<span class="cmt">// context.read() fires events without rebuilding</span>
+
+<span class="kw">class</span> <span class="tp">CartPage</span> <span class="kw">extends</span> <span class="tp">StatelessWidget</span> {
+  @<span class="prop">override</span>
+  <span class="tp">Widget</span> <span class="fn">build</span>(<span class="tp">BuildContext</span> ctx) =&gt;
+    <span class="tp">BlocProvider</span>(           <span class="cmt">// ← like React.Provider</span>
+      create: (_) =&gt; <span class="tp">CartBloc</span>(repo: <span class="tp">GetIt</span>.I()),
+      child: <span class="tp">BlocBuilder</span>&lt;<span class="tp">CartBloc</span>, <span class="tp">CartState</span>&gt;(
+        <span class="cmt">// buildWhen reduces unnecessary rebuilds</span>
+        buildWhen: (prev, next) =&gt;
+          prev.items != next.items ||
+          prev.status != next.status,
+
+        builder: (ctx, state) {
+          <span class="kw">if</span> (state.status == <span class="tp">CartStatus</span>.loading)
+            <span class="kw">return</span> <span class="tp">CircularProgressIndicator</span>();
+
+          <span class="kw">return</span> <span class="tp">Column</span>(children: [
+            ...state.items.<span class="fn">map</span>((item) =&gt;
+              <span class="tp">CartItemTile</span>(
+                item: item,
+                onRemove: () =&gt; ctx.<span class="fn">read</span>&lt;<span class="tp">CartBloc</span>&gt;()
+                  .<span class="fn">add</span>(<span class="tp">RemoveItemEvent</span>(itemId: item.id)),
+              )
+            ),
+            <span class="tp">Text</span>(<span class="str">'Total: \$${state.total}'</span>),
+            <span class="tp">ElevatedButton</span>(
+              onPressed: () =&gt; ctx.<span class="fn">read</span>&lt;<span class="tp">CartBloc</span>&gt;()
+                .<span class="fn">add</span>(<span class="tp">CheckoutEvent</span>(userId: <span class="str">'u1'</span>)),
+              child: <span class="tp">Text</span>(<span class="str">'Checkout'</span>),
+            ),
+          ]);
+        },
+      ),
+    );
+}</div>
+        </div>
+        <div class="bloc-code-pane" id="bcp-redux">
+          <div class="code-block" style="font-size:12px"><span class="cmt">// BLoC concepts map almost 1:1 to Redux + RTK</span>
+
+<span class="cmt">// ─── Redux (RTK) ──────────────────────────────</span>
+<span class="kw">const</span> cartSlice = <span class="fn">createSlice</span>({
+  name: <span class="str">'cart'</span>,
+  initialState: { items: [], total: <span class="num">0</span>, status: <span class="str">'idle'</span> },
+  reducers: {
+    addItem:    (state, action) =&gt; { <span class="cmt">/* mutate immer */</span> },
+    removeItem: (state, action) =&gt; { <span class="cmt">/* mutate immer */</span> },
+    clearCart:  (state) =&gt; { state.items = []; state.total = <span class="num">0</span>; },
+  },
+  extraReducers: (builder) =&gt; {
+    builder
+      .<span class="fn">addCase</span>(checkout.pending,  s =&gt; { s.status = <span class="str">'loading'</span>; })
+      .<span class="fn">addCase</span>(checkout.fulfilled,s =&gt; { s.status = <span class="str">'success'</span>; })
+      .<span class="fn">addCase</span>(checkout.rejected, s =&gt; { s.status = <span class="str">'error'</span>; });
+  },
+});
+<span class="kw">const</span> checkout = <span class="fn">createAsyncThunk</span>(<span class="str">'cart/checkout'</span>,
+  <span class="kw">async</span> (userId) =&gt; <span class="kw">await</span> api.<span class="fn">placeOrder</span>(userId));
+
+<span class="cmt">// ─── BLoC equivalent ──────────────────────────</span>
+<span class="cmt">// Event         =  Action type + payload</span>
+<span class="cmt">// on&lt;E&gt;(handler) =  case in reducer</span>
+<span class="cmt">// emit(state)    =  return newState / immer mutate</span>
+<span class="cmt">// CheckoutEvent  =  createAsyncThunk</span>
+<span class="cmt">// BlocProvider   =  Redux &lt;Provider store={store}&gt;</span>
+<span class="cmt">// BlocBuilder    =  useSelector hook</span>
+<span class="cmt">// context.read&lt;B&gt;().add(event) = dispatch(action())</span></div>
+        </div>
+
+      </div><!-- end bloc-playground -->
+
+    </div><!-- end sm-pane bloc -->
+
+  </div><!-- end section-body -->
+
   <div class="section-nav">
     <button class="nav-btn prev" onclick="goto(3)">← <div class="nb-stack"><span class="nb-lbl">Back</span><span class="nb-title">Navigation</span></div></button>
     <button class="nav-btn nxt" onclick="goto(5)"><div class="nb-stack"><span class="nb-lbl">Up next</span><span class="nb-title">Data persistence →</span></div></button>
   </div>
+
+<script>
+/* ── State management tab switcher ── */
+function smTab(t) {
+  document.querySelectorAll('.sm-tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.sm-pane').forEach(el => el.classList.remove('active'));
+  document.getElementById('sm-tab-' + t)?.classList.add('active');
+  document.getElementById('sm-pane-' + t)?.classList.add('active');
+}
+
+/* ── BLoC playground ── */
+const blocState = {
+  items: [],
+  total: 0,
+  status: 'idle',
+  error: null,
+};
+
+const ITEMS = {
+  p1: { id: 'p1', name: 'AirPods Pro', price: 129 },
+  p2: { id: 'p2', name: 'USB-C Cable', price: 19 },
+};
+
+const EVENT_COLORS = {
+  add:      { bg: '#4ade8020', border: '#4ade8050', text: '#4ade80' },
+  remove:   { bg: '#fb718520', border: '#fb718550', text: '#fb7185' },
+  clear:    { bg: '#fbbf2420', border: '#fbbf2450', text: '#fbbf24' },
+  loading:  { bg: '#a78bfa20', border: '#a78bfa50', text: '#a78bfa' },
+  success:  { bg: '#4ade8020', border: '#4ade8050', text: '#4ade80' },
+  error:    { bg: '#fb718520', border: '#fb718550', text: '#fb7185' },
+};
+
+function blocFire(action) {
+  // highlight event button
+  document.querySelectorAll('.bloc-event-btn').forEach(b => b.classList.remove('fired'));
+  const btnMap = { addItem:'ev-add', addItem2:'ev-add2', removeItem:'ev-remove', clearCart:'ev-clear', checkout:'ev-checkout', resetCheckout:'ev-reset' };
+  document.getElementById(btnMap[action])?.classList.add('fired');
+
+  // clear all handler highlights
+  ['add','remove','clear','checkout'].forEach(h => {
+    document.getElementById('bh-'+h)?.classList.remove('active-handler');
+    document.getElementById('bh-'+h+'-n')?.classList.remove('active-bh');
+    document.getElementById('bh-'+h+'-prog').style.width = '0%';
+  });
+
+  if (action === 'addItem') {
+    activateHandler('add');
+    animateProgress('bh-add-prog', 80, () => {
+      blocState.items = blocState.items.filter(i => i.id !== 'p1').concat([ITEMS.p1]);
+      blocState.total = blocState.items.reduce((s,i) => s + i.price, 0);
+      blocState.status = 'idle'; blocState.error = null;
+      emitState('add');
+    });
+  } else if (action === 'addItem2') {
+    activateHandler('add');
+    animateProgress('bh-add-prog', 80, () => {
+      blocState.items = blocState.items.filter(i => i.id !== 'p2').concat([ITEMS.p2]);
+      blocState.total = blocState.items.reduce((s,i) => s + i.price, 0);
+      blocState.status = 'idle'; blocState.error = null;
+      emitState('add');
+    });
+  } else if (action === 'removeItem') {
+    if (!blocState.items.find(i => i.id === 'p1')) {
+      flashMsg('Add AirPods first'); return;
+    }
+    activateHandler('remove');
+    animateProgress('bh-remove-prog', 80, () => {
+      blocState.items = blocState.items.filter(i => i.id !== 'p1');
+      blocState.total = blocState.items.reduce((s,i) => s + i.price, 0);
+      emitState('remove');
+    });
+  } else if (action === 'clearCart') {
+    activateHandler('clear');
+    animateProgress('bh-clear-prog', 60, () => {
+      blocState.items = []; blocState.total = 0;
+      blocState.status = 'idle'; blocState.error = null;
+      emitState('clear');
+    });
+  } else if (action === 'checkout') {
+    if (blocState.items.length === 0) { flashMsg('Cart is empty'); return; }
+    activateHandler('checkout');
+    blocState.status = 'loading';
+    updateStateDisplay();
+    animateProgress('bh-checkout-prog', 300, () => {
+      const success = Math.random() > 0.3;
+      blocState.status = success ? 'success' : 'error';
+      blocState.error = success ? null : 'Payment declined';
+      if (success) { blocState.items = []; blocState.total = 0; }
+      emitState(success ? 'success' : 'error');
+    });
+  } else if (action === 'resetCheckout') {
+    blocState.status = 'idle'; blocState.error = null;
+    emitState('clear');
+  }
+}
+
+function activateHandler(name) {
+  const h = document.getElementById('bh-'+name);
+  const n = document.getElementById('bh-'+name+'-n');
+  h?.classList.add('active-handler');
+  n?.classList.add('active-bh');
+}
+
+function animateProgress(id, duration, cb) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.transition = `width ${duration}ms linear`;
+  el.style.width = '100%';
+  setTimeout(() => {
+    el.style.transition = 'width 0.2s';
+    el.style.width = '0%';
+    cb();
+  }, duration);
+}
+
+function emitState(evType) {
+  updateStateDisplay(true);
+  addStreamBubble(evType);
+  flashWidget();
+}
+
+function updateStateDisplay(changed) {
+  const box = document.getElementById('bs-state-box');
+  if (changed) {
+    box.classList.remove('state-changed');
+    void box.offsetWidth;
+    box.classList.add('state-changed');
+    setTimeout(() => box.classList.remove('state-changed'), 800);
+  }
+
+  // animate changed values
+  function setVal(id, newVal) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.textContent !== String(newVal)) {
+      el.classList.remove('changed');
+      void el.offsetWidth;
+      el.classList.add('changed');
+      setTimeout(() => el.classList.remove('changed'), 600);
+    }
+    el.textContent = newVal;
+  }
+
+  setVal('bs-count', blocState.items.length);
+  setVal('bs-total', '$' + blocState.total);
+  setVal('bs-status-val', blocState.status);
+  setVal('bs-error', blocState.error ?? 'null');
+
+  // mock status widget
+  const ms = document.getElementById('mock-status');
+  const mt = document.getElementById('mock-status-text');
+  ms.className = 'mock-status status-' + blocState.status;
+  const statusLabels = { idle:'Ready to checkout', loading:'Processing payment…', success:'Order placed! 🎉', error: blocState.error || 'Error occurred' };
+  mt.textContent = statusLabels[blocState.status] || blocState.status;
+
+  // mock cart items
+  const cart = document.getElementById('mock-cart');
+  if (blocState.items.length === 0) {
+    cart.innerHTML = '<div class="mock-empty">Cart is empty</div>';
+  } else {
+    cart.innerHTML = blocState.items.map((item, idx) =>
+      `<div class="mock-item ${changed ? 'new-item' : ''}" style="animation-delay:${idx*0.05}s">
+        <span class="mock-item-name">${item.name}</span>
+        <span class="mock-item-price">$${item.price}</span>
+      </div>`
+    ).join('') +
+    `<div class="mock-total"><span>Total</span><span class="mock-total-val">$${blocState.total}</span></div>`;
+  }
+}
+
+function flashWidget() {
+  const w = document.getElementById('bs-widget');
+  w.classList.remove('rebuilding');
+  void w.offsetWidth;
+  w.classList.add('rebuilding');
+  setTimeout(() => w.classList.remove('rebuilding'), 600);
+}
+
+function addStreamBubble(evType) {
+  const pipe = document.getElementById('bloc-stream');
+  const colors = EVENT_COLORS[evType] || EVENT_COLORS.add;
+  const labels = { add:'CartState(+item)', remove:'CartState(-item)', clear:'CartState.initial', loading:'CartState(loading)', success:'CartState(success)', error:'CartState(error)' };
+
+  // remove placeholder text
+  const placeholder = pipe.querySelector('span:last-child:not(.pipe-event):not(.pipe-label)');
+  if (placeholder && placeholder.tagName === 'SPAN' && !placeholder.classList.contains('pipe-event') && !placeholder.classList.contains('pipe-label')) {
+    placeholder.remove();
+  }
+
+  const ev = document.createElement('div');
+  ev.className = 'pipe-event';
+  ev.innerHTML = `<span class="pipe-arrow">→</span><span class="pipe-bubble" style="background:${colors.bg};border-color:${colors.border};color:${colors.text}">${labels[evType] || evType}</span>`;
+  pipe.appendChild(ev);
+  pipe.scrollLeft = pipe.scrollWidth;
+
+  // prune old bubbles
+  const bubbles = pipe.querySelectorAll('.pipe-event');
+  if (bubbles.length > 8) bubbles[0].remove();
+}
+
+function flashMsg(msg) {
+  const pipe = document.getElementById('bloc-stream');
+  const old = pipe.querySelector('.flash-msg');
+  if (old) old.remove();
+  const el = document.createElement('span');
+  el.className = 'flash-msg';
+  el.style.cssText = 'font-family:var(--mono);font-size:10px;color:var(--accent-coral);padding:0 10px;animation:logIn 0.2s ease';
+  el.textContent = '⚠ ' + msg;
+  pipe.appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+}
+
+function blocCodeTab(name) {
+  document.querySelectorAll('.bloc-code-tab').forEach((t, i) => t.classList.remove('active'));
+  document.querySelectorAll('.bloc-code-pane').forEach(p => p.classList.remove('active'));
+  const tabs = ['event','state','bloc','widget','redux'];
+  const idx = tabs.indexOf(name);
+  document.querySelectorAll('.bloc-code-tab')[idx]?.classList.add('active');
+  document.getElementById('bcp-' + name)?.classList.add('active');
+}
+</script>
+
 </section>
 
 <!-- ══ SEC 5: Data Persistence ══ -->
